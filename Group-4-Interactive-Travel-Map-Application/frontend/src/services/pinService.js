@@ -8,20 +8,21 @@
 // createPin is async now so App.js can await it consistently.
 // When you swap in the real fetch() call, App.js needs zero changes.
 export async function createPin({ lat, lng, locationName, visitDate }) {
-
-  // TODO: replace this block with the fetch() call to Java backend:
-  // const response = await fetch('http://localhost:8080/api/pins', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify({ locationName, visitDate, latitude: lat, longitude: lng })
-  // });
-  // return await response.json();
-
-  return {
-    id: Date.now(),
-    lat,
-    lng,
-    locationName: locationName || 'Unnamed Pin',
-    visitDate: visitDate || 'No date',
-  };
+  try {
+    const response = await fetch('http://localhost:8080/api/pins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locationName, visitDate, latitude: lat, longitude: lng })
+    });
+    return await response.json();
+  } catch (err) {
+    console.error('Backend not available, using local fallback:', err);
+    return {
+      id: Date.now(),
+      lat,
+      lng,
+      locationName: locationName || 'Unnamed Pin',
+      visitDate: visitDate || 'No date',
+    };
+  }
 }
