@@ -6,19 +6,35 @@
 //   - Passes data and handlers down to View components as props
 // Contains no UI of its own.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
 import './services/mapService';
 import MapView from './components/MapView';
 import PinForm from './components/PinForm';
-import { createPin } from './services/pinService';
+import { createPin, getPins } from './services/pinService';
 
 function App() {
 
-  // pins → in full architecture fetched from Java backend via GET /api/pins
+  // pins → fetched from Java backend via GET /api/pins on mount (FR4, FR15)
   // form → pure UI state, stays in React
   const [pins, setPins] = useState([]);
   const [form, setForm] = useState(null);
+
+  // FR4, FR15 — load all pins from backend when the app first mounts.
+  // This is what makes pins persist across page refreshes — on every load
+  // React fetches all saved pins from H2 via GET /api/pins and renders
+  // them as markers. Without this, pins only exist in local state and
+  // disappear on refresh.
+  useEffect(() => {
+    getPins()
+      .then(data => {
+        console.log('Loaded pins from backend:', data);
+        setPins(data);
+      })
+      .catch(err => {
+        console.error('Could not load pins from backend:', err);
+      });
+  }, []); // empty array — runs once on mount only
 
   // Receives click from MapView, opens the form
   const handleMapClick = (latlng) => {
@@ -30,6 +46,7 @@ function App() {
   const handleSavePin = async ({ locationName, visitDate }) => {
     if (!form) return;
     const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, visitDate });
+    console.log('Pin returned from backend:', pin);
     setPins(prev => [...prev, pin]);
     setForm(null);
   };

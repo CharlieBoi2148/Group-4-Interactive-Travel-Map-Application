@@ -38,7 +38,7 @@ export default function MapView({ pins, onMapClick }) {
       {/* Pin markers — equivalent to View.displayPins(pinList) from UML.
           In full architecture pins comes from fetch() result, not local state. */}
       {pins.map(pin => (
-        <Marker key={pin.id} position={[pin.lat, pin.lng]}>
+        <Marker key={pin.id} position={[pin.latitude, pin.longitude]}>
           <Popup>
             <strong>{pin.locationName}</strong><br />
             {pin.visitDate}
