@@ -36,6 +36,9 @@ public class TripService {
      * @return persisted trip
      */
     public Trip createTrip(Trip trip) {
+        if (trip.getName() == null || trip.getName().isBlank()) {
+            throw new IllegalArgumentException("Trip name is required");
+        }
         if (trip.getPrivacyLevel() == null) {
             trip.setPrivacyLevel(Privacy.PRIVATE);
         }
