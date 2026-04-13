@@ -11,14 +11,16 @@ import 'leaflet/dist/leaflet.css';
 import './services/mapService';
 import MapView from './components/MapView';
 import PinForm from './components/PinForm';
-import { createPin, getPins } from './services/pinService';
+import { createPin, getPins, deletePin } from './services/pinService';
 
 function App() {
 
   // pins → fetched from Java backend via GET /api/pins on mount (FR4, FR15)
   // form → pure UI state, stays in React
+  // confirmDelete → holds the pin pending deletion, null if no dialog open
   const [pins, setPins] = useState([]);
   const [form, setForm] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   // FR4, FR15 — load all pins from backend when the app first mounts.
   // This is what makes pins persist across page refreshes — on every load
@@ -56,8 +58,71 @@ function App() {
     setForm(null);
   };
 
+  // FR3 — step 1: MapView calls this when user clicks Delete.
+  // Opens the confirmation dialog by storing the pin in confirmDelete state.
+  // No backend call yet — SRS requires confirmation before deletion.
+  const handleDeletePin = (pin) => {
+    setConfirmDelete(pin);
+  };
+
+  // FR3 — step 2: User confirmed deletion.
+  // Delegates to pinService, removes pin from local state on success.
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await deletePin(confirmDelete.id);
+      setPins(prev => prev.filter(p => p.id !== confirmDelete.id));
+    } catch (err) {
+      console.error('Failed to delete pin:', err);
+    } finally {
+      setConfirmDelete(null);
+    }
+  };
+
+  // FR3 — user cancelled deletion dialog
+  const handleCancelDelete = () => {
+    setConfirmDelete(null);
+  };
+
   return (
     <div style={{ position: 'relative', height: '100vh' }}>
+
+      {/* FR3 — confirmation dialog per SRS requirement */}
+      {confirmDelete && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0,
+          width: '100%', height: '100%',
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 2000, display: 'flex',
+          alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            background: 'white', padding: '24px',
+            borderRadius: '8px', minWidth: '280px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+          }}>
+            <h3 style={{ margin: '0 0 12px' }}>Delete Pin</h3>
+            <p style={{ margin: '0 0 20px', color: '#555' }}>
+              Are you sure you want to delete <strong>{confirmDelete.locationName}</strong>? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleConfirmDelete}
+                style={{ flex: 1, padding: '8px', background: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Delete
+              </button>
+              <button
+                onClick={handleCancelDelete}
+                style={{ flex: 1, padding: '8px', background: '#eee', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {form && (
         <PinForm
           latlng={form}
@@ -68,6 +133,7 @@ function App() {
       <MapView
         pins={pins}
         onMapClick={handleMapClick}
+        onDeletePin={handleDeletePin}
       />
     </div>
   );
