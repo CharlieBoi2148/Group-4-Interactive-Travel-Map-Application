@@ -40,3 +40,11 @@ export async function getPins() {
   const pins = await response.json();
   return pins.map(p => ({ ...p, lat: p.latitude, lng: p.longitude }));
 }
+
+export async function deletePin(id) {
+  const response = await fetch(`http://localhost:8080/api/pins/${id}`, {
+    method: 'DELETE'
+  });
+  if (!response.ok) throw new Error(`Failed to delete pin ${id}`);
+  return true;
+}
