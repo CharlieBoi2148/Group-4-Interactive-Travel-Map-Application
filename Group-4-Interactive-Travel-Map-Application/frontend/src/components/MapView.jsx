@@ -18,7 +18,7 @@ function PinPlacer({ onMapClick }) {
   return null;
 }
 
-export default function MapView({ pins, onMapClick, onDeletePin }) {
+export default function MapView({ pins, onMapClick, onDeletePin, onEditPin }) {
   return (
     <MapContainer
       center={[20, 0]}
@@ -42,17 +42,30 @@ export default function MapView({ pins, onMapClick, onDeletePin }) {
           <Popup>
             <strong>{pin.locationName}</strong><br />
             {pin.visitDate}<br /><br />
-            {/* FR3 — delete button delegates upward to Controller, never acts directly */}
-            <button
-              onClick={() => onDeletePin(pin)}
-              style={{
-                width: '100%', padding: '6px',
-                background: '#e53e3e', color: 'white',
-                border: 'none', borderRadius: '4px', cursor: 'pointer'
-              }}
-            >
-              Delete Pin
-            </button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {/* FR2 — edit button delegates upward to Controller, never acts directly */}
+              <button
+                onClick={() => onEditPin(pin)}
+                style={{
+                  flex: 1, padding: '6px',
+                  background: '#3182ce', color: 'white',
+                  border: 'none', borderRadius: '4px', cursor: 'pointer'
+                }}
+              >
+                Edit
+              </button>
+              {/* FR3 — delete button delegates upward to Controller, never acts directly */}
+              <button
+                onClick={() => onDeletePin(pin)}
+                style={{
+                  flex: 1, padding: '6px',
+                  background: '#e53e3e', color: 'white',
+                  border: 'none', borderRadius: '4px', cursor: 'pointer'
+                }}
+              >
+                Delete
+              </button>
+            </div>
           </Popup>
         </Marker>
       ))}
