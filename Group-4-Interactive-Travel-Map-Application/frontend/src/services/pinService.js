@@ -48,3 +48,18 @@ export async function deletePin(id) {
   if (!response.ok) throw new Error(`Failed to delete pin ${id}`);
   return true;
 }
+
+// FR2 — Update an existing pin by id.
+// Called by App.js when user saves changes in EditPinForm.
+// Sends only the modified fields — PinService.java applies a partial update
+// so unmodified fields are preserved on the backend.
+export async function updatePin(id, updatedPin) {
+  const response = await fetch(`http://localhost:8080/api/pins/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updatedPin)
+  });
+  if (!response.ok) throw new Error(`Failed to update pin ${id}`);
+  const saved = await response.json();
+  return { ...saved, lat: saved.latitude, lng: saved.longitude };
+}
