@@ -7,12 +7,16 @@ import org.springframework.http.ResponseEntity;
 import travelmap.model.Trip;
 
 /**
- * Trip REST contract (FR5 — organize trip; FR4 — view trips).
+ * Trip REST contract.
+ *
+ * <p>Maps to {@code POST /api/trips} and {@code GET /api/trips} on
+ * {@link travelmap.controller.TripController} — FR5 (create/organize trip)
+ * and FR4 (view trips).
  */
 public interface ITripController {
 
     /**
-     * Create and persist a new trip.
+     * FR5 — Create and persist a new trip ({@code POST /api/trips}).
      *
      * @param trip request body
      * @return HTTP 201 with saved trip, or 400 if validation fails
@@ -20,9 +24,9 @@ public interface ITripController {
     ResponseEntity<Trip> createTrip(Trip trip);
 
     /**
-     * List all persisted trips.
+     * FR4 — List all persisted trips ({@code GET /api/trips}).
      *
-     * @return 200 with trip list
+     * @return HTTP 200 with a JSON array of trips
      */
     ResponseEntity<List<Trip>> getAllTrips();
 }

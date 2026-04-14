@@ -10,7 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.Transient;
 
 /**
  * Trip — Model layer (MVC).
@@ -18,6 +18,10 @@ import jakarta.persistence.OneToMany;
  * Represents a user-created trip that groups pins and timeline metadata.
  * This class is a JPA entity and is designed for persistence through a future
  * TripRepository/TripService implementation.
+ *
+ * <p>{@code pins} is {@code @Transient} until {@code Pin} is a JPA entity and a
+ * proper {@code tripId} / {@code @ManyToOne} mapping is merged — otherwise Hibernate
+ * cannot persist {@code Trip}.
  */
 @Entity
 public class Trip {
@@ -30,7 +34,7 @@ public class Trip {
     private LocalDate startDate;
     private LocalDate endDate;
 
-    @OneToMany
+    @Transient
     private List<Pin> pins;
 
     @Enumerated(EnumType.STRING)
