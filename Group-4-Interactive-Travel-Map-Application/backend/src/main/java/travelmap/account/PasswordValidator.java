@@ -4,7 +4,22 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class PasswordValidator {
-    public boolean validatePassword(String password) { return false; }
-    public String hashPassword(String password) { return null; }
-    public boolean checkMatch(String raw, String hashed) { return false; }
+    public boolean validatePassword(String password) { 
+        if (password == null){ 
+            return false;
+        }
+        return password.length() >= 8; 
+    }
+    public String hashPassword(String password) { 
+        if (password == null) {
+        return null;
+    }
+    return Integer.toHexString(password.hashCode());
+    }
+    public boolean checkMatch(String raw, String hashed) {
+    if (raw == null || hashed == null) {
+        return false;
+    }
+    return hashPassword(raw).equals(hashed);
+    }
 }
