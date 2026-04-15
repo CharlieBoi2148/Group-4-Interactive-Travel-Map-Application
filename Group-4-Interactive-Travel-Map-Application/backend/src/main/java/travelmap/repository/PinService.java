@@ -160,6 +160,7 @@ public class PinService {
         if (pin.getRegion() != null) existing.setRegion(pin.getRegion());
         if (pin.getVisitDate() != null) existing.setVisitDate(pin.getVisitDate());
         if (pin.getNotes() != null) existing.setNotes(pin.getNotes());
+        if (pin.getTripId() != null) existing.setTripId(pin.getTripId());
         if (pin.getPrivacyLevel() != null) existing.setPrivacyLevel(pin.getPrivacyLevel());
         if (pin.getMediaUrl() != null) existing.setMediaUrl(pin.getMediaUrl());
 

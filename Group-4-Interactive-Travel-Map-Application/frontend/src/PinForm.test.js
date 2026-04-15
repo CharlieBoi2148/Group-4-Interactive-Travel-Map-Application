@@ -48,7 +48,8 @@ test('FR1 — calls onSave with locationName when Save Pin is clicked', () => {
   // Controller (App.js) receives the correct data
   expect(mockSave).toHaveBeenCalledWith({
     locationName: 'Eiffel Tower',
-    visitDate: ''
+    visitDate: '',
+    tripId: null
   });
 });
 
@@ -69,7 +70,8 @@ test('FR1 — calls onSave with both locationName and visitDate', () => {
 
   expect(mockSave).toHaveBeenCalledWith({
     locationName: 'Eiffel Tower',
-    visitDate: '2024-06-01'
+    visitDate: '2024-06-01',
+    tripId: null
   });
 });
 

@@ -31,12 +31,18 @@ function normalizePin(p, fallbackLat, fallbackLng) {
 }
 
 // FR1 — Create a new pin and return it with lat/lng normalised for the UI.
-export async function createPin({ lat, lng, locationName, visitDate }) {
+export async function createPin({ lat, lng, locationName, visitDate, tripId }) {
   try {
     const response = await fetch(PIN_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locationName, visitDate, latitude: lat, longitude: lng }),
+      body: JSON.stringify({
+        locationName,
+        visitDate,
+        latitude: lat,
+        longitude: lng,
+        tripId: tripId ?? null,
+      }),
     });
 
     if (!response.ok) {
@@ -49,6 +55,7 @@ export async function createPin({ lat, lng, locationName, visitDate }) {
       id: saved.id != null ? saved.id : Date.now(),
       locationName: saved.locationName ?? locationName,
       visitDate: saved.visitDate ?? visitDate,
+      tripId: saved.tripId ?? tripId ?? null,
     };
     return normalizePin(merged, lat, lng);
   } catch (err) {
@@ -61,6 +68,7 @@ export async function createPin({ lat, lng, locationName, visitDate }) {
       lng,
       locationName: locationName || 'Unnamed Pin',
       visitDate: visitDate || 'No date',
+      tripId: tripId ?? null,
     };
   }
 }

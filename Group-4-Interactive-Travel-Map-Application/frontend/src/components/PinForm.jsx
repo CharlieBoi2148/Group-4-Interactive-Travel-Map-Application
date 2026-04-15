@@ -5,16 +5,21 @@
 
 import { useState } from 'react';
 
-export default function PinForm({ latlng, onSave, onCancel }) {
+export default function PinForm({ latlng, onSave, onCancel, trips = [] }) {
 
   // Controlled inputs — React owns the form state, not the DOM.
   // Using document.getElementById() is a DOM hack that breaks in React.
   const [locationName, setLocationName] = useState('');
   const [visitDate, setVisitDate] = useState('');
+  const [tripId, setTripId] = useState('');
 
   const handleSave = () => {
     if (!locationName.trim()) return;
-    onSave({ locationName, visitDate });
+    onSave({
+      locationName,
+      visitDate,
+      tripId: tripId === '' ? null : Number(tripId),
+    });
   };
 
   return (
@@ -46,6 +51,18 @@ export default function PinForm({ latlng, onSave, onCancel }) {
         type="date"
         style={{ width: '100%', padding: '8px', marginBottom: '12px', boxSizing: 'border-box' }}
       />
+      <select
+        value={tripId}
+        onChange={(e) => setTripId(e.target.value)}
+        style={{ width: '100%', padding: '8px', marginBottom: '12px', boxSizing: 'border-box' }}
+      >
+        <option value="">No trip (unassigned)</option>
+        {trips.map((trip) => (
+          <option key={trip.id} value={trip.id}>
+            {trip.name}
+          </option>
+        ))}
+      </select>
 
       {/* Buttons delegate to Controller handlers — View never saves data itself */}
       <div style={{ display: 'flex', gap: '8px' }}>

@@ -18,7 +18,13 @@ function PinPlacer({ onMapClick }) {
   return null;
 }
 
-export default function MapView({ pins, onMapClick }) {
+export default function MapView({ pins, trips = [], onMapClick }) {
+  const tripNameById = new Map(
+    trips
+      .filter((trip) => trip.id != null)
+      .map((trip) => [Number(trip.id), trip.name])
+  );
+
   return (
     <MapContainer
       center={[20, 0]}
@@ -51,6 +57,14 @@ export default function MapView({ pins, onMapClick }) {
             <Popup>
               <strong>{pin.locationName}</strong><br />
               {pin.visitDate}
+              {pin.tripId != null ? (
+                <>
+                  <br />
+                  <span style={{ color: '#555' }}>
+                    Trip: {tripNameById.get(Number(pin.tripId)) || `#${pin.tripId}`}
+                  </span>
+                </>
+              ) : null}
             </Popup>
           </Marker>
         ))}

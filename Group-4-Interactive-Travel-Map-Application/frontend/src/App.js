@@ -60,9 +60,9 @@ function App() {
 
   // Receives save from PinForm, delegates to pinService, updates state.
   // async/await so it works the same whether pinService is local or fetch().
-  const handleSavePin = async ({ locationName, visitDate }) => {
+  const handleSavePin = async ({ locationName, visitDate, tripId }) => {
     if (!form) return;
-    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, visitDate });
+    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, visitDate, tripId });
     console.log('Pin returned from backend:', pin);
     setPins((prev) => [...prev, pin]);
     setForm(null);
@@ -97,10 +97,12 @@ function App() {
             latlng={form}
             onSave={handleSavePin}
             onCancel={handleCancel}
+            trips={trips}
           />
         )}
         <MapView
           pins={pins}
+          trips={trips}
           onMapClick={handleMapClick}
         />
       </div>
@@ -117,7 +119,7 @@ function App() {
           boxSizing: 'border-box',
         }}
       >
-        <TripList trips={trips} />
+        <TripList trips={trips} pins={pins} />
 
         {!showTripForm ? (
           <button
