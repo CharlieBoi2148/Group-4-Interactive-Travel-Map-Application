@@ -4,17 +4,24 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from './App';
 
-// Mock MapView — renders pins and exposes a delete button per pin
-jest.mock('./components/MapView', () => ({ pins, onDeletePin }) => (
+// Mock MapView — renders pins and exposes a delete and edit button per pin
+jest.mock('./components/MapView', () => ({ pins, onDeletePin, onEditPin }) => (
   <div data-testid="map-view">
     {pins.map(pin => (
-      <button
-        key={pin.id}
-        data-testid={`delete-btn-${pin.id}`}
-        onClick={() => onDeletePin(pin)}
-      >
-        Delete {pin.locationName}
-      </button>
+      <div key={pin.id}>
+        <button
+          data-testid={`delete-btn-${pin.id}`}
+          onClick={() => onDeletePin(pin)}
+        >
+          Delete {pin.locationName}
+        </button>
+        <button
+          data-testid={`edit-btn-${pin.id}`}
+          onClick={() => onEditPin(pin)}
+        >
+          Edit {pin.locationName}
+        </button>
+      </div>
     ))}
   </div>
 ));
@@ -30,14 +37,18 @@ jest.mock('./services/pinService', () => ({
   getPins: jest.fn(),
   createPin: jest.fn(),
   deletePin: jest.fn(),
+  updatePin: jest.fn(),
 }));
 
 beforeEach(() => {
-  const { getPins, deletePin } = require('./services/pinService');
+  const { getPins, deletePin, updatePin } = require('./services/pinService');
   getPins.mockResolvedValue([
     { id: 1, locationName: 'Eiffel Tower', visitDate: '2024-06-01', latitude: 48.8584, longitude: 2.2945, lat: 48.8584, lng: 2.2945 }
   ]);
   deletePin.mockResolvedValue(true);
+  updatePin.mockResolvedValue(
+    { id: 1, locationName: 'Eiffel Tower Updated', visitDate: '2024-06-01', notes: '', latitude: 48.8584, longitude: 2.2945, lat: 48.8584, lng: 2.2945 }
+  );
 });
 
 // ── FR6: Map renders ──────────────────────────────────────────────────────────
@@ -120,5 +131,84 @@ test('FR3 — dialog closes even when backend delete fails', async () => {
   // the finally block in handleConfirmDelete ensures this
   await waitFor(() =>
     expect(screen.queryByText(/Are you sure you want to delete/)).not.toBeInTheDocument()
+  );
+});
+
+// ── FR2: Edit Travel Pin ──────────────────────────────────────────────────────
+
+test('FR2 — clicking Edit on a pin opens the EditPinForm', async () => {
+  render(<App />);
+
+  await waitFor(() => screen.getByTestId('edit-btn-1'));
+  fireEvent.click(screen.getByTestId('edit-btn-1'));
+
+  // EditPinForm heading appears
+  expect(screen.getByText('Edit Pin')).toBeInTheDocument();
+});
+
+test('FR2 — clicking Cancel in EditPinForm closes it without calling updatePin', async () => {
+  const { updatePin } = require('./services/pinService');
+  render(<App />);
+
+  await waitFor(() => screen.getByTestId('edit-btn-1'));
+  fireEvent.click(screen.getByTestId('edit-btn-1'));
+
+  fireEvent.click(screen.getByText('Cancel'));
+
+  // Form is closed
+  await waitFor(() =>
+    expect(screen.queryByText('Edit Pin')).not.toBeInTheDocument()
+  );
+
+  // Backend was never called
+  expect(updatePin).not.toHaveBeenCalled();
+});
+
+test('FR2 — saving calls updatePin with the correct id and fields', async () => {
+  const { updatePin } = require('./services/pinService');
+  render(<App />);
+
+  await waitFor(() => screen.getByTestId('edit-btn-1'));
+  fireEvent.click(screen.getByTestId('edit-btn-1'));
+
+  fireEvent.click(screen.getByText('Save Changes'));
+
+  await waitFor(() =>
+    expect(updatePin).toHaveBeenCalledWith(1, {
+      locationName: 'Eiffel Tower',
+      visitDate: '2024-06-01',
+      notes: '',
+    })
+  );
+});
+
+test('FR2 — state updates after save and edit form closes', async () => {
+  render(<App />);
+
+  await waitFor(() => screen.getByTestId('edit-btn-1'));
+  fireEvent.click(screen.getByTestId('edit-btn-1'));
+
+  fireEvent.click(screen.getByText('Save Changes'));
+
+  // Edit form closes after successful save
+  await waitFor(() =>
+    expect(screen.queryByText('Edit Pin')).not.toBeInTheDocument()
+  );
+});
+
+test('FR2 — edit form closes cleanly even when updatePin rejects', async () => {
+  const { updatePin } = require('./services/pinService');
+  updatePin.mockRejectedValueOnce(new Error('Network error'));
+
+  render(<App />);
+
+  await waitFor(() => screen.getByTestId('edit-btn-1'));
+  fireEvent.click(screen.getByTestId('edit-btn-1'));
+
+  fireEvent.click(screen.getByText('Save Changes'));
+
+  // Form still closes — the finally block in handleUpdatePin ensures this
+  await waitFor(() =>
+    expect(screen.queryByText('Edit Pin')).not.toBeInTheDocument()
   );
 });
