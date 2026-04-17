@@ -67,18 +67,18 @@ test('FR6 — renders correct number of markers for multiple pins', () => {
 
 test('FR3 — delete button renders for each pin', () => {
   render(<MapView pins={multiplePins} onMapClick={mockOnMapClick} onDeletePin={mockOnDeletePin} />);
-  expect(screen.getAllByText('Delete Pin')).toHaveLength(3);
+  expect(screen.getAllByText('Delete')).toHaveLength(3);
 });
 
 test('FR3 — clicking delete button calls onDeletePin with correct pin', () => {
   render(<MapView pins={singlePin} onMapClick={mockOnMapClick} onDeletePin={mockOnDeletePin} />);
-  fireEvent.click(screen.getByText('Delete Pin'));
+  fireEvent.click(screen.getByText('Delete'));
   expect(mockOnDeletePin).toHaveBeenCalledWith(singlePin[0]);
 });
 
 test('FR3 — clicking delete on one pin does not call onDeletePin with wrong pin', () => {
   render(<MapView pins={multiplePins} onMapClick={mockOnMapClick} onDeletePin={mockOnDeletePin} />);
-  const deleteButtons = screen.getAllByText('Delete Pin');
+  const deleteButtons = screen.getAllByText('Delete');
 
   // Click the second pin's delete button
   fireEvent.click(deleteButtons[1]);
