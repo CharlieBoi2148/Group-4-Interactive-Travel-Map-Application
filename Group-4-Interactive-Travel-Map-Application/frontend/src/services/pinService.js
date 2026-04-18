@@ -27,6 +27,8 @@ export async function createPin({ lat, lng, locationName, visitDate }) {
     console.error('Backend not available, using local fallback:', err);
     return {
       id: Date.now(),
+      latitude: lat,
+      longitude: lng,
       lat,
       lng,
       locationName: locationName || 'Unnamed Pin',

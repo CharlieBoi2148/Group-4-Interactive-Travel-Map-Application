@@ -12,7 +12,7 @@ import './services/mapService';
 import MapView from './components/MapView';
 import PinForm from './components/PinForm';
 import EditPinForm from './components/EditPinForm';
-import { createPin, getPins, deletePin, updatePin } from './services/pinService';
+import { createPin, getPins, deletePin, updatePin, setPinPrivacy } from './services/pinService';
 
 function App() {
 
@@ -88,6 +88,20 @@ function App() {
     setEditPin(null);
   };
 
+  // FR11 — triggered immediately when user changes privacy dropdown in EditPinForm.
+  // Does not wait for Save — changes apply immediately per SRS FR11.
+  // Updates both pins array and editPin so state stays fully in sync.
+  const handlePrivacyChange = async (privacyLevel) => {
+    if (!editPin) return;
+    try {
+      const updated = await setPinPrivacy(editPin.id, privacyLevel);
+      setPins(prev => prev.map(p => p.id === updated.id ? updated : p));
+      setEditPin(updated);
+    } catch (err) {
+      console.error('Failed to update privacy:', err);
+    }
+  };
+
   // FR3 — step 1: MapView calls this when user clicks Delete.
   // Opens the confirmation dialog by storing the pin in confirmDelete state.
   // No backend call yet — SRS requires confirmation before deletion.
@@ -159,6 +173,7 @@ function App() {
           pin={editPin}
           onSave={handleUpdatePin}
           onCancel={handleCancelEdit}
+          onPrivacyChange={handlePrivacyChange}
         />
       )}
 
