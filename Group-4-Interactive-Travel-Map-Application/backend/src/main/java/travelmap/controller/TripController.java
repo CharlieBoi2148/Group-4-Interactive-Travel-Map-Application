@@ -40,7 +40,7 @@ import travelmap.repository.TripService;
  */
 @RestController
 @RequestMapping("/api/trips")
-@CrossOrigin(origins = { "http://localhost:3000", "http://127.0.0.1:3000" })
+@CrossOrigin(origins = "http://localhost:3000")
 public class TripController implements ITripController {
 
     private final TripService tripService;

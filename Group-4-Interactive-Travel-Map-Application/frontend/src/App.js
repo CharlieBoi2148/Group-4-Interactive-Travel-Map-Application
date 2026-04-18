@@ -12,6 +12,7 @@ import './services/mapService';
 import MapView from './components/MapView';
 import PinForm from './components/PinForm';
 import TripList from './components/TripList';
+import Timeline from './components/Timeline';
 import TripForm from './components/TripForm';
 import { createPin, getPins } from './services/pinService';
 import { createTrip, getTrips } from './services/tripService';
@@ -120,6 +121,7 @@ function App() {
         }}
       >
         <TripList trips={trips} pins={pins} />
+        <Timeline pins={pins} trips={trips} />
 
         {!showTripForm ? (
           <button
