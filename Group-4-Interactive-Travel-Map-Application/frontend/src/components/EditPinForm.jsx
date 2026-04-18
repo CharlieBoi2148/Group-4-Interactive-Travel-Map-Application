@@ -6,21 +6,39 @@
 // Receives the full pin object as a prop so inputs can be pre-filled with
 // existing values. The user only sees and edits text fields — coordinates,
 // id, and privacyLevel are never exposed here.
+//
+// FR11 — privacy dropdown triggers onPrivacyChange immediately on change,
+// not on Save. This matches the SRS requirement that changes apply immediately.
 
 import { useState } from 'react';
 
-export default function EditPinForm({ pin, onSave, onCancel }) {
+const PRIVACY_OPTIONS = [
+  { value: 'PRIVATE', label: 'Private' },
+  { value: 'FRIENDS_ONLY', label: 'Friends Only' },
+  { value: 'PUBLIC', label: 'Public' },
+];
+
+export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange }) {
 
   // Pre-fill controlled inputs with existing pin data
   const [locationName, setLocationName] = useState(pin.locationName || '');
   const [visitDate, setVisitDate] = useState(pin.visitDate || '');
   const [notes, setNotes] = useState(pin.notes || '');
+  const [privacyLevel, setPrivacyLevel] = useState(pin.privacyLevel || 'PRIVATE');
 
   const handleSave = () => {
     if (!locationName.trim()) return;
     // Only pass the fields the user can edit — App.js sends these to updatePin()
     // Backend PinService applies a partial update, preserving all other fields
     onSave({ locationName, visitDate, notes });
+  };
+
+  // FR11 — privacy change is immediate, not bundled with Save
+  // Updates local display state and delegates upward to App.js
+  const handlePrivacyChange = (e) => {
+    const newPrivacy = e.target.value;
+    setPrivacyLevel(newPrivacy);
+    onPrivacyChange(newPrivacy);
   };
 
   return (
@@ -57,8 +75,19 @@ export default function EditPinForm({ pin, onSave, onCancel }) {
         onChange={e => setNotes(e.target.value)}
         placeholder="Notes"
         rows={3}
-        style={{ width: '100%', padding: '8px', marginBottom: '12px', boxSizing: 'border-box', resize: 'vertical' }}
+        style={{ width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box', resize: 'vertical' }}
       />
+
+      {/* FR11 — privacy dropdown, triggers immediately on change per SRS */}
+      <select
+        value={privacyLevel}
+        onChange={handlePrivacyChange}
+        style={{ width: '100%', padding: '8px', marginBottom: '12px', boxSizing: 'border-box' }}
+      >
+        {PRIVACY_OPTIONS.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
 
       {/* Buttons delegate to Controller handlers — View never saves data itself */}
       <div style={{ display: 'flex', gap: '8px' }}>
