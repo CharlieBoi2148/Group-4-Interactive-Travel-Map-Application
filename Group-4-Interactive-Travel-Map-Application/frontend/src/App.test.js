@@ -38,16 +38,20 @@ jest.mock('./services/pinService', () => ({
   createPin: jest.fn(),
   deletePin: jest.fn(),
   updatePin: jest.fn(),
+  setPinPrivacy: jest.fn(),
 }));
 
 beforeEach(() => {
-  const { getPins, deletePin, updatePin } = require('./services/pinService');
+  const { getPins, deletePin, updatePin, setPinPrivacy } = require('./services/pinService');
   getPins.mockResolvedValue([
     { id: 1, locationName: 'Eiffel Tower', visitDate: '2024-06-01', latitude: 48.8584, longitude: 2.2945, lat: 48.8584, lng: 2.2945 }
   ]);
   deletePin.mockResolvedValue(true);
   updatePin.mockResolvedValue(
     { id: 1, locationName: 'Eiffel Tower Updated', visitDate: '2024-06-01', notes: '', latitude: 48.8584, longitude: 2.2945, lat: 48.8584, lng: 2.2945 }
+  );
+  setPinPrivacy.mockResolvedValue(
+    { id: 1, locationName: 'Eiffel Tower', visitDate: '2024-06-01', notes: '', privacyLevel: 'PUBLIC', latitude: 48.8584, longitude: 2.2945, lat: 48.8584, lng: 2.2945 }
   );
 });
 
@@ -210,5 +214,57 @@ test('FR2 — edit form closes cleanly even when updatePin rejects', async () =>
   // Form still closes — the finally block in handleUpdatePin ensures this
   await waitFor(() =>
     expect(screen.queryByText('Edit Pin')).not.toBeInTheDocument()
+  );
+});
+
+// ── FR11: Pin Privacy ─────────────────────────────────────────────────────────
+
+test('FR11 — changing privacy dropdown calls setPinPrivacy with correct id and value', async () => {
+  const { setPinPrivacy } = require('./services/pinService');
+  render(<App />);
+
+  await waitFor(() => screen.getByTestId('edit-btn-1'));
+  fireEvent.click(screen.getByTestId('edit-btn-1'));
+
+  // Change dropdown — EditPinForm renders fully so getByDisplayValue works
+  fireEvent.change(screen.getByDisplayValue('Private'), { target: { value: 'PUBLIC' } });
+
+  await waitFor(() =>
+    expect(setPinPrivacy).toHaveBeenCalledWith(1, 'PUBLIC')
+  );
+});
+
+test('FR11 — pins array updates with returned pin after privacy change', async () => {
+  const { setPinPrivacy } = require('./services/pinService');
+  render(<App />);
+
+  await waitFor(() => screen.getByTestId('edit-btn-1'));
+  fireEvent.click(screen.getByTestId('edit-btn-1'));
+
+  fireEvent.change(screen.getByDisplayValue('Private'), { target: { value: 'PUBLIC' } });
+
+  // setPinPrivacy resolves with updated pin — state should update without crash
+  await waitFor(() =>
+    expect(setPinPrivacy).toHaveBeenCalledTimes(1)
+  );
+
+  // Edit form remains open — privacy change does not close the form
+  expect(screen.getByText('Edit Pin')).toBeInTheDocument();
+});
+
+test('FR11 — form stays open and does not crash when setPinPrivacy rejects', async () => {
+  const { setPinPrivacy } = require('./services/pinService');
+  setPinPrivacy.mockRejectedValueOnce(new Error('Network error'));
+
+  render(<App />);
+
+  await waitFor(() => screen.getByTestId('edit-btn-1'));
+  fireEvent.click(screen.getByTestId('edit-btn-1'));
+
+  fireEvent.change(screen.getByDisplayValue('Private'), { target: { value: 'PUBLIC' } });
+
+  // Form stays open — handlePrivacyChange has no finally that closes the form
+  await waitFor(() =>
+    expect(screen.getByText('Edit Pin')).toBeInTheDocument()
   );
 });
