@@ -49,9 +49,9 @@ function App() {
   };
 
   // Receives save from PinForm, delegates to pinService, updates state.
-  const handleSavePin = async ({ locationName, visitDate }) => {
+  const handleSavePin = async ({ locationName, country, region, visitDate, notes }) => {
     if (!form) return;
-    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, visitDate });
+    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, country, region, visitDate, notes });
     console.log('Pin returned from backend:', pin);
     setPins(prev => [...prev, pin]);
     setForm(null);

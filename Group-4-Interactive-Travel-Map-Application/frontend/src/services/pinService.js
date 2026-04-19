@@ -14,12 +14,12 @@
 //   and adding lat/lng aliases so MapView never needs to change.
 
 // FR1 — Create a new pin and return it with lat/lng normalised for MapView.
-export async function createPin({ lat, lng, locationName, visitDate }) {
+export async function createPin({ lat, lng, locationName, country, region, visitDate, notes }) {
   try {
     const response = await fetch('http://localhost:8080/api/pins', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locationName, visitDate, latitude: lat, longitude: lng })
+      body: JSON.stringify({ locationName, country, region, visitDate, notes, latitude: lat, longitude: lng })
     });
     const saved = await response.json();
     return { ...saved, lat: saved.latitude, lng: saved.longitude };

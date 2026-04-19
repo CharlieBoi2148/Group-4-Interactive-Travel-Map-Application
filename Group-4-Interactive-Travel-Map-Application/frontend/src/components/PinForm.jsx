@@ -1,6 +1,7 @@
 // --- VIEW: PIN FORM COMPONENT -------------------------------------------------
-// Pure View responsibility — captures FR1 inputs (location name, visit date)
-// and delegates Save/Cancel actions to the Controller layer (App.js) via props.
+// Pure View responsibility — captures FR1 inputs (location name, country,
+// region, visit date, notes) and delegates Save/Cancel actions to the
+// Controller layer (App.js) via props.
 // The View never saves data itself — it only reports what the user did.
 
 import { useState } from 'react';
@@ -10,12 +11,17 @@ export default function PinForm({ latlng, onSave, onCancel }) {
   // Controlled inputs — React owns the form state, not the DOM.
   // Using document.getElementById() is a DOM hack that breaks in React.
   const [locationName, setLocationName] = useState('');
+  const [country, setCountry] = useState('');
+  const [region, setRegion] = useState('');
   const [visitDate, setVisitDate] = useState('');
+  const [notes, setNotes] = useState('');
 
   const handleSave = () => {
     if (!locationName.trim()) return;
-    onSave({ locationName, visitDate });
+    onSave({ locationName, country, region, visitDate, notes });
   };
+
+  const inputStyle = { width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' };
 
   return (
     <div style={{
@@ -37,14 +43,33 @@ export default function PinForm({ latlng, onSave, onCancel }) {
       <input
         value={locationName}
         onChange={e => setLocationName(e.target.value)}
-        placeholder="Location name"
-        style={{ width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' }}
+        placeholder="Location name *"
+        style={inputStyle}
+      />
+      <input
+        value={country}
+        onChange={e => setCountry(e.target.value)}
+        placeholder="Country"
+        style={inputStyle}
+      />
+      <input
+        value={region}
+        onChange={e => setRegion(e.target.value)}
+        placeholder="Region / State / Province"
+        style={inputStyle}
       />
       <input
         value={visitDate}
         onChange={e => setVisitDate(e.target.value)}
         type="date"
-        style={{ width: '100%', padding: '8px', marginBottom: '12px', boxSizing: 'border-box' }}
+        style={inputStyle}
+      />
+      <textarea
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        placeholder="Notes (optional)"
+        rows={3}
+        style={{ ...inputStyle, marginBottom: '12px', resize: 'vertical' }}
       />
 
       {/* Buttons delegate to Controller handlers — View never saves data itself */}

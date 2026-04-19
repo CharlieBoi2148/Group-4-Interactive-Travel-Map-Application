@@ -17,7 +17,7 @@ const mockLatlng = { lat: 48.8584, lng: 2.2945 };
 
 test('FR1 — renders location name input', () => {
     render(<PinForm latlng={mockLatlng} onSave={jest.fn()} onCancel={jest.fn()} />);
-    expect(screen.getByPlaceholderText('Location name')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Location name *')).toBeInTheDocument();
 });
 
 test('FR1 — renders visit date input', () => {
@@ -38,7 +38,7 @@ test('FR1 — calls onSave with locationName when Save Pin is clicked', () => {
   render(<PinForm latlng={mockLatlng} onSave={mockSave} onCancel={jest.fn()} />);
 
   // User types a location name (FR1 step 2)
-  fireEvent.change(screen.getByPlaceholderText('Location name'), {
+  fireEvent.change(screen.getByPlaceholderText('Location name *'), {
     target: { value: 'Eiffel Tower' }
   });
 
@@ -48,7 +48,10 @@ test('FR1 — calls onSave with locationName when Save Pin is clicked', () => {
   // Controller (App.js) receives the correct data
   expect(mockSave).toHaveBeenCalledWith({
     locationName: 'Eiffel Tower',
-    visitDate: ''
+    country: '',
+    region: '',
+    visitDate: '',
+    notes: ''
   });
 });
 
@@ -57,7 +60,7 @@ test('FR1 — calls onSave with both locationName and visitDate', () => {
 
   render(<PinForm latlng={mockLatlng} onSave={mockSave} onCancel={jest.fn()} />);
 
-  fireEvent.change(screen.getByPlaceholderText('Location name'), {
+  fireEvent.change(screen.getByPlaceholderText('Location name *'), {
     target: { value: 'Eiffel Tower' }
   });
 
@@ -69,7 +72,10 @@ test('FR1 — calls onSave with both locationName and visitDate', () => {
 
   expect(mockSave).toHaveBeenCalledWith({
     locationName: 'Eiffel Tower',
-    visitDate: '2024-06-01'
+    country: '',
+    region: '',
+    visitDate: '2024-06-01',
+    notes: ''
   });
 });
 
