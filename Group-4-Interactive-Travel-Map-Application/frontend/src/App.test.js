@@ -180,6 +180,8 @@ test('FR2 — saving calls updatePin with the correct id and fields', async () =
   await waitFor(() =>
     expect(updatePin).toHaveBeenCalledWith(1, {
       locationName: 'Eiffel Tower',
+      country: '',
+      region: '',
       visitDate: '2024-06-01',
       notes: '',
     })

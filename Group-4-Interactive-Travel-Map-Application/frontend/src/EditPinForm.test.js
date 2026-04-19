@@ -4,6 +4,8 @@ import EditPinForm from './components/EditPinForm';
 const mockPin = {
   id: 1,
   locationName: 'Eiffel Tower',
+  country: 'France',
+  region: 'Île-de-France',
   visitDate: '2024-06-01',
   notes: 'Amazing view',
   latitude: 48.8584,
@@ -29,6 +31,8 @@ test('FR2 — inputs are pre-filled with existing pin data', () => {
 
   // Assert
   expect(screen.getByPlaceholderText('Location name').value).toBe('Eiffel Tower');
+  expect(screen.getByPlaceholderText('Country').value).toBe('France');
+  expect(screen.getByPlaceholderText('Region / State / Province').value).toBe('Île-de-France');
   expect(document.querySelector('input[type="date"]').value).toBe('2024-06-01');
   expect(screen.getByPlaceholderText('Notes').value).toBe('Amazing view');
 });
@@ -56,6 +60,8 @@ test('FR2 — valid save delegates correct fields to onSave', () => {
   expect(onSave).toHaveBeenCalledTimes(1);
   expect(onSave).toHaveBeenCalledWith({
     locationName: 'Eiffel Tower',
+    country: 'France',
+    region: 'Île-de-France',
     visitDate: '2024-06-01',
     notes: 'Amazing view'
   });
@@ -69,12 +75,16 @@ test('FR2 — valid save with all fields edited calls onSave with new values', (
 
   // Act
   fireEvent.change(screen.getByPlaceholderText('Location name'), { target: { value: 'Louvre Museum' } });
+  fireEvent.change(screen.getByPlaceholderText('Country'), { target: { value: 'France' } });
+  fireEvent.change(screen.getByPlaceholderText('Region / State / Province'), { target: { value: 'Paris' } });
   fireEvent.change(screen.getByPlaceholderText('Notes'), { target: { value: 'Great art' } });
   fireEvent.click(screen.getByText('Save Changes'));
 
   // Assert
   expect(onSave).toHaveBeenCalledWith({
     locationName: 'Louvre Museum',
+    country: 'France',
+    region: 'Paris',
     visitDate: '2024-06-01',
     notes: 'Great art'
   });

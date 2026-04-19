@@ -71,10 +71,10 @@ function App() {
   // FR2 — step 2: User saved changes in EditPinForm.
   // Only sends the fields the user can edit — backend preserves all other fields.
   // Updates the pin in local state so the map reflects changes immediately.
-  const handleUpdatePin = async ({ locationName, visitDate, notes }) => {
+  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes }) => {
     if (!editPin) return;
     try {
-      const updated = await updatePin(editPin.id, { locationName, visitDate, notes });
+      const updated = await updatePin(editPin.id, { locationName, country, region, visitDate, notes });
       setPins(prev => prev.map(p => p.id === updated.id ? updated : p));
     } catch (err) {
       console.error('Failed to update pin:', err);

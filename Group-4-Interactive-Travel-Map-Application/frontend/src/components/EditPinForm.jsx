@@ -22,6 +22,8 @@ export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange }) 
 
   // Pre-fill controlled inputs with existing pin data
   const [locationName, setLocationName] = useState(pin.locationName || '');
+  const [country, setCountry] = useState(pin.country || '');
+  const [region, setRegion] = useState(pin.region || '');
   const [visitDate, setVisitDate] = useState(pin.visitDate || '');
   const [notes, setNotes] = useState(pin.notes || '');
   const [privacyLevel, setPrivacyLevel] = useState(pin.privacyLevel || 'PRIVATE');
@@ -30,7 +32,7 @@ export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange }) 
     if (!locationName.trim()) return;
     // Only pass the fields the user can edit — App.js sends these to updatePin()
     // Backend PinService applies a partial update, preserving all other fields
-    onSave({ locationName, visitDate, notes });
+    onSave({ locationName, country, region, visitDate, notes });
   };
 
   // FR11 — privacy change is immediate, not bundled with Save
@@ -40,6 +42,8 @@ export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange }) 
     setPrivacyLevel(newPrivacy);
     onPrivacyChange(newPrivacy);
   };
+
+  const inputStyle = { width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' };
 
   return (
     <div style={{
@@ -62,27 +66,39 @@ export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange }) 
         value={locationName}
         onChange={e => setLocationName(e.target.value)}
         placeholder="Location name"
-        style={{ width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' }}
+        style={inputStyle}
+      />
+      <input
+        value={country}
+        onChange={e => setCountry(e.target.value)}
+        placeholder="Country"
+        style={inputStyle}
+      />
+      <input
+        value={region}
+        onChange={e => setRegion(e.target.value)}
+        placeholder="Region / State / Province"
+        style={inputStyle}
       />
       <input
         value={visitDate}
         onChange={e => setVisitDate(e.target.value)}
         type="date"
-        style={{ width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' }}
+        style={inputStyle}
       />
       <textarea
         value={notes}
         onChange={e => setNotes(e.target.value)}
         placeholder="Notes"
         rows={3}
-        style={{ width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box', resize: 'vertical' }}
+        style={{ ...inputStyle, marginBottom: '8px', resize: 'vertical' }}
       />
 
       {/* FR11 — privacy dropdown, triggers immediately on change per SRS */}
       <select
         value={privacyLevel}
         onChange={handlePrivacyChange}
-        style={{ width: '100%', padding: '8px', marginBottom: '12px', boxSizing: 'border-box' }}
+        style={{ ...inputStyle, marginBottom: '12px' }}
       >
         {PRIVACY_OPTIONS.map(opt => (
           <option key={opt.value} value={opt.value}>{opt.label}</option>
