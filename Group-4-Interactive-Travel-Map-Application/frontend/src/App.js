@@ -1,7 +1,7 @@
 // --- APP (AppController equivalent) -------------------------------------------
 // Top-level wiring file only — imports and composes all sub-components.
 // Acts as the Controller layer on the frontend:
-//   - Holds UI state (pins, trips, forms)
+//   - Holds UI state (pins, form, editPin, confirmDelete)
 //   - Receives View events and routes them to the appropriate service
 //   - Passes data and handlers down to View components as props
 // Contains no UI of its own.
@@ -14,20 +14,29 @@ import PinForm from './components/PinForm';
 import TripList from './components/TripList';
 import Timeline from './components/Timeline';
 import TripForm from './components/TripForm';
-import { createPin, getPins } from './services/pinService';
+import EditPinForm from './components/EditPinForm';
+import { createPin, getPins, deletePin, updatePin, setPinPrivacy } from './services/pinService';
 import { createTrip, getTrips, setTripPrivacy } from './services/tripService';
 
 function App() {
-  // pins/trips -> fetched from Java backend on mount (FR4, FR15)
+  // pins → fetched from Java backend via GET /api/pins on mount (FR4, FR15)
   // form/showTripForm -> pure UI state, stays in React
+  // editPin → holds the pin currently being edited, null if no edit open
+  // confirmDelete → holds the pin pending deletion, null if no dialog open
+
   const [pins, setPins] = useState([]);
   const [trips, setTrips] = useState([]);
   const [form, setForm] = useState(null);
+  const [editPin, setEditPin] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [showTripForm, setShowTripForm] = useState(false);
   const [tripSaveError, setTripSaveError] = useState(null);
   const [tripPrivacyError, setTripPrivacyError] = useState(null);
   // FR10 — main panel toggles between map and dedicated timeline view
   const [mainView, setMainView] = useState('map');
+
+
+
 
   // FR4, FR15 — load all pins from backend when the app first mounts.
   // This is what makes pins persist across page refreshes — on every load
@@ -57,22 +66,25 @@ function App() {
       });
   }, []);
 
-  // Receives click from MapView, opens the form
+  // Receives click from MapView, opens the create form.
+  // Closes any open edit form first — prevents both forms rendering simultaneously.
   const handleMapClick = (latlng) => {
+    setEditPin(null);
     setForm(latlng);
   };
 
   // Receives save from PinForm, delegates to pinService, updates state.
   // async/await so it works the same whether pinService is local or fetch().
-  const handleSavePin = async ({ locationName, visitDate, tripId }) => {
+  const handleSavePin = async ({ locationName, country, region, visitDate, notes, tripId }) => {
     if (!form) return;
-    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, visitDate, tripId });
+    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, country, region, visitDate, tripId, notes });
     console.log('Pin returned from backend:', pin);
     setPins((prev) => [...prev, pin]);
     setForm(null);
   };
 
   // Pure UI cancel — closes form, no backend involvement
+
   const handleCancel = () => {
     setForm(null);
   };
@@ -107,7 +119,73 @@ function App() {
       console.error('Could not update trip privacy:', err);
     }
   };
+  
+  // FR2 — step 1: MapView calls this when user clicks Edit on a pin.
+  // Opens the edit form by storing the pin in editPin state.
+  const handleEditPin = (pin) => {
+    setEditPin(pin);
+  };
 
+  // FR2 — step 2: User saved changes in EditPinForm.
+  // Only sends the fields the user can edit — backend preserves all other fields.
+  // Updates the pin in local state so the map reflects changes immediately.
+  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes }) => {
+    if (!editPin) return;
+    try {
+      const updated = await updatePin(editPin.id, { locationName, country, region, visitDate, notes });
+      setPins(prev => prev.map(p => p.id === updated.id ? updated : p));
+    } catch (err) {
+      console.error('Failed to update pin:', err);
+    } finally {
+      setEditPin(null);
+    }
+  };
+
+  // FR2 — user cancelled edit, no backend involvement
+  const handleCancelEdit = () => {
+    setEditPin(null);
+  };
+
+  // FR11 — triggered immediately when user changes privacy dropdown in EditPinForm.
+  // Does not wait for Save — changes apply immediately per SRS FR11.
+  // Updates both pins array and editPin so state stays fully in sync.
+  const handlePrivacyChange = async (privacyLevel) => {
+    if (!editPin) return;
+    try {
+      const updated = await setPinPrivacy(editPin.id, privacyLevel);
+      setPins(prev => prev.map(p => p.id === updated.id ? updated : p));
+      setEditPin(updated);
+    } catch (err) {
+      console.error('Failed to update privacy:', err);
+    }
+  };
+
+  // FR3 — step 1: MapView calls this when user clicks Delete.
+  // Opens the confirmation dialog by storing the pin in confirmDelete state.
+  // No backend call yet — SRS requires confirmation before deletion.
+  const handleDeletePin = (pin) => {
+    setConfirmDelete(pin);
+  };
+
+  // FR3 — step 2: User confirmed deletion.
+  // Delegates to pinService, removes pin from local state on success.
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await deletePin(confirmDelete.id);
+      setPins(prev => prev.filter(p => p.id !== confirmDelete.id));
+    } catch (err) {
+      console.error('Failed to delete pin:', err);
+    } finally {
+      setConfirmDelete(null);
+    }
+  };
+
+  // FR3 — user cancelled deletion dialog
+  const handleCancelDelete = () => {
+    setConfirmDelete(null);
+  };
+  
   return (
     <div style={{ position: 'relative', height: '100vh', display: 'flex' }}>
       <div
@@ -181,6 +259,77 @@ function App() {
                 minHeight: 0,
               }}
             >
+              {confirmDelete && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    background: 'rgba(0,0,0,0.5)',
+                    zIndex: 2000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      background: 'white',
+                      padding: '24px',
+                      borderRadius: '8px',
+                      minWidth: '280px',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                    }}
+                  >
+                    <h3 style={{ margin: '0 0 12px' }}>Delete Pin</h3>
+                    <p style={{ margin: '0 0 20px', color: '#555' }}>
+                      Are you sure you want to delete <strong>{confirmDelete.locationName}</strong>? This cannot be
+                      undone.
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={handleConfirmDelete}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: '#e53e3e',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={handleCancelDelete}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: '#eee',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {editPin && (
+                <EditPinForm
+                  pin={editPin}
+                  onSave={handleUpdatePin}
+                  onCancel={handleCancelEdit}
+                  onPrivacyChange={handlePrivacyChange}
+                />
+              )}
+
               {form && (
                 <PinForm
                   latlng={form}
@@ -189,7 +338,13 @@ function App() {
                   trips={trips}
                 />
               )}
-              <MapView pins={pins} trips={trips} onMapClick={handleMapClick} />
+              <MapView
+                pins={pins}
+                trips={trips}
+                onMapClick={handleMapClick}
+                onDeletePin={handleDeletePin}
+                onEditPin={handleEditPin}
+              />
             </div>
           ) : (
             <div

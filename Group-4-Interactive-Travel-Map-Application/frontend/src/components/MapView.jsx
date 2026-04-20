@@ -18,7 +18,7 @@ function PinPlacer({ onMapClick }) {
   return null;
 }
 
-export default function MapView({ pins, trips = [], onMapClick }) {
+export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onEditPin }) {
   const tripNameById = new Map(
     trips
       .filter((trip) => trip.id != null)
@@ -41,33 +41,64 @@ export default function MapView({ pins, trips = [], onMapClick }) {
       {/* Event listener — delegates map click to Controller */}
       <PinPlacer onMapClick={onMapClick} />
 
-      {/* Pin markers — use latitude/longitude, with lat/lng fallback (pinService). */}
-      {pins
-        .map((pin, index) => {
-          const lat = Number(pin.latitude ?? pin.lat);
-          const lng = Number(pin.longitude ?? pin.lng);
-          return { pin, lat, lng, index, ok: Number.isFinite(lat) && Number.isFinite(lng) };
-        })
-        .filter((x) => x.ok)
-        .map(({ pin, lat, lng, index }) => (
-          <Marker
-            key={pin.id != null ? String(pin.id) : `pin-${index}`}
-            position={[lat, lng]}
+{/* Pin markers — supports latitude/longitude with lat/lng fallback */}
+{pins
+  .map((pin, index) => {
+    const lat = Number(pin.latitude ?? pin.lat);
+    const lng = Number(pin.longitude ?? pin.lng);
+    return { pin, lat, lng, index, ok: Number.isFinite(lat) && Number.isFinite(lng) };
+  })
+  .filter((x) => x.ok)
+  .map(({ pin, lat, lng, index }) => (
+    <Marker key={pin.id != null ? String(pin.id) : `pin-${index}`} position={[lat, lng]}>
+      <Popup>
+        <strong>{pin.locationName}</strong>
+        <br />
+        {pin.visitDate}
+        {pin.tripId != null ? (
+          <>
+            <br />
+            <span style={{ color: '#555' }}>
+              Trip: {tripNameById.get(Number(pin.tripId)) || `#${pin.tripId}`}
+            </span>
+          </>
+        ) : null}
+
+        <br />
+        <br />
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button
+            onClick={() => onEditPin?.(pin)}
+            style={{
+              flex: 1,
+              padding: '6px',
+              background: '#3182ce',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
           >
-            <Popup>
-              <strong>{pin.locationName}</strong><br />
-              {pin.visitDate}
-              {pin.tripId != null ? (
-                <>
-                  <br />
-                  <span style={{ color: '#555' }}>
-                    Trip: {tripNameById.get(Number(pin.tripId)) || `#${pin.tripId}`}
-                  </span>
-                </>
-              ) : null}
-            </Popup>
-          </Marker>
-        ))}
+            Edit
+          </button>
+          <button
+            onClick={() => onDeletePin?.(pin)}
+            style={{
+              flex: 1,
+              padding: '6px',
+              background: '#e53e3e',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      </Popup>
+    </Marker>
+  ))}
     </MapContainer>
   );
 }

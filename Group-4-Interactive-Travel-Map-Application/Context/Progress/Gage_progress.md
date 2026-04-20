@@ -26,6 +26,7 @@ Starting floor: 34 — must never decrease
 [ ] Wire searchService.js to GET /api/search (FR9)
 [ ] Write JUnit tests — TripServiceTest and SearchControllerTest (FR5, FR9, FR10)
 
+=======
 ## Cross-Team Dependencies Waiting On
 - Pin.java needs ownerId field (Wilson — blocks Charlie's getAllPins filter)
 - Trip.java needs tripId on Pin (Gage — blocks Charlie's findByTripId)
