@@ -5,8 +5,9 @@
  * @param {Object} props
  * @param {Array<Object>} props.trips trips from GET /api/trips
  * @param {Array<Object>} props.pins pins from GET /api/pins
+ * @param {function(number,string):void} [props.onTripPrivacyChange] callback for privacy update
  */
-export default function TripList({ trips, pins = [] }) {
+export default function TripList({ trips, pins = [], onTripPrivacyChange }) {
   const formatDate = (d) => {
     if (!d) return '—';
     return typeof d === 'string' ? d : d;
@@ -68,6 +69,24 @@ export default function TripList({ trips, pins = [] }) {
               <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
                 {formatDate(t.startDate)} → {formatDate(t.endDate)}
                 {t.privacyLevel ? ` · ${t.privacyLevel}` : ''}
+              </div>
+              <div style={{ marginTop: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#555' }}>
+                  Privacy
+                  <select
+                    value={t.privacyLevel || 'PRIVATE'}
+                    onChange={(e) => {
+                      if (typeof onTripPrivacyChange === 'function' && t.id != null) {
+                        onTripPrivacyChange(Number(t.id), e.target.value);
+                      }
+                    }}
+                    style={{ marginLeft: '8px', padding: '4px', fontSize: '12px' }}
+                  >
+                    <option value="PRIVATE">Private</option>
+                    <option value="FRIENDS_ONLY">Friends only</option>
+                    <option value="PUBLIC">Public</option>
+                  </select>
+                </label>
               </div>
               {(() => {
                 const assigned = [...(pinsByTripId[Number(t.id)] || [])].sort(sortByVisitDate);

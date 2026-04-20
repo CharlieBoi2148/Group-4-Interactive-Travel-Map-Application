@@ -98,3 +98,27 @@ export async function createTrip({ name, description, startDate, endDate, privac
   }
   return data;
 }
+
+/**
+ * FR11 — Update an existing trip privacy level.
+ * @param {number|string} id trip id
+ * @param {string} privacyLevel PRIVATE | FRIENDS_ONLY | PUBLIC
+ * @returns {Promise<Object>} updated trip
+ */
+export async function setTripPrivacy(id, privacyLevel) {
+  let response;
+  try {
+    response = await fetch(`${TRIPS_URL}/${id}/privacy`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(privacyLevel),
+    });
+  } catch (e) {
+    throw wrapNetworkError(e);
+  }
+
+  if (!response.ok) {
+    throw new Error(`Could not update trip privacy (HTTP ${response.status}). ${NETWORK_HINT}`);
+  }
+  return response.json();
+}

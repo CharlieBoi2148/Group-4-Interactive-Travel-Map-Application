@@ -29,7 +29,7 @@ export default function MapView({ pins, trips = [], onMapClick }) {
     <MapContainer
       center={[20, 0]}
       zoom={2}
-      style={{ height: '100vh', width: '100%' }}
+      style={{ height: '100%', width: '100%', minHeight: 0 }}
     >
       {/* TileLayer fetches map tiles from OpenStreetMap
           In full architecture configured inside mapService.js */}

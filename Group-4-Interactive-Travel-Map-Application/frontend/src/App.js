@@ -15,7 +15,7 @@ import TripList from './components/TripList';
 import Timeline from './components/Timeline';
 import TripForm from './components/TripForm';
 import { createPin, getPins } from './services/pinService';
-import { createTrip, getTrips } from './services/tripService';
+import { createTrip, getTrips, setTripPrivacy } from './services/tripService';
 
 function App() {
   // pins/trips -> fetched from Java backend on mount (FR4, FR15)
@@ -25,6 +25,9 @@ function App() {
   const [form, setForm] = useState(null);
   const [showTripForm, setShowTripForm] = useState(false);
   const [tripSaveError, setTripSaveError] = useState(null);
+  const [tripPrivacyError, setTripPrivacyError] = useState(null);
+  // FR10 — main panel toggles between map and dedicated timeline view
+  const [mainView, setMainView] = useState('map');
 
   // FR4, FR15 — load all pins from backend when the app first mounts.
   // This is what makes pins persist across page refreshes — on every load
@@ -90,22 +93,121 @@ function App() {
     }
   };
 
+  const handleTripPrivacyChange = async (tripId, privacyLevel) => {
+    setTripPrivacyError(null);
+    try {
+      const updated = await setTripPrivacy(tripId, privacyLevel);
+      setTrips((prev) =>
+        prev.map((trip) => (trip.id === updated.id ? { ...trip, privacyLevel: updated.privacyLevel } : trip))
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Could not update trip privacy. Is backend running on :8080?';
+      setTripPrivacyError(message);
+      console.error('Could not update trip privacy:', err);
+    }
+  };
+
   return (
     <div style={{ position: 'relative', height: '100vh', display: 'flex' }}>
-      <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
-        {form && (
-          <PinForm
-            latlng={form}
-            onSave={handleSavePin}
-            onCancel={handleCancel}
-            trips={trips}
-          />
-        )}
-        <MapView
-          pins={pins}
-          trips={trips}
-          onMapClick={handleMapClick}
-        />
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
+      >
+        <div
+          role="tablist"
+          aria-label="Main view"
+          style={{
+            display: 'flex',
+            gap: '8px',
+            padding: '8px 12px',
+            background: '#fff',
+            borderBottom: '1px solid #ddd',
+            flexShrink: 0,
+          }}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mainView === 'map'}
+            data-testid="main-view-map"
+            onClick={() => setMainView('map')}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              background: mainView === 'map' ? '#1D9E75' : '#f5f5f5',
+              color: mainView === 'map' ? '#fff' : '#333',
+            }}
+          >
+            Map
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mainView === 'timeline'}
+            data-testid="main-view-timeline"
+            onClick={() => {
+              setForm(null);
+              setMainView('timeline');
+            }}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              background: mainView === 'timeline' ? '#1D9E75' : '#f5f5f5',
+              color: mainView === 'timeline' ? '#fff' : '#333',
+            }}
+          >
+            Timeline
+          </button>
+        </div>
+
+        <div style={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
+          {mainView === 'map' ? (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                minHeight: 0,
+              }}
+            >
+              {form && (
+                <PinForm
+                  latlng={form}
+                  onSave={handleSavePin}
+                  onCancel={handleCancel}
+                  trips={trips}
+                />
+              )}
+              <MapView pins={pins} trips={trips} onMapClick={handleMapClick} />
+            </div>
+          ) : (
+            <div
+              style={{
+                height: '100%',
+                padding: '12px 16px',
+                boxSizing: 'border-box',
+                background: '#fff',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0,
+              }}
+            >
+              <Timeline pins={pins} trips={trips} variant="main" />
+            </div>
+          )}
+        </div>
       </div>
 
       <aside
@@ -120,8 +222,22 @@ function App() {
           boxSizing: 'border-box',
         }}
       >
-        <TripList trips={trips} pins={pins} />
-        <Timeline pins={pins} trips={trips} />
+        <TripList trips={trips} pins={pins} onTripPrivacyChange={handleTripPrivacyChange} />
+        {tripPrivacyError ? (
+          <p
+            role="alert"
+            style={{
+              color: '#b00020',
+              fontSize: '13px',
+              margin: '0 0 8px',
+              padding: '8px',
+              background: '#ffebee',
+              borderRadius: '6px',
+            }}
+          >
+            {tripPrivacyError}
+          </p>
+        ) : null}
 
         {!showTripForm ? (
           <button

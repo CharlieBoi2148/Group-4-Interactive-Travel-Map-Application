@@ -7,12 +7,15 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import travelmap.interfaces.ITripController;
+import travelmap.model.Privacy;
 import travelmap.model.Trip;
 import travelmap.repository.TripService;
 
@@ -85,5 +88,23 @@ public class TripController implements ITripController {
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<Trip>> getAllTrips() {
         return ResponseEntity.ok(tripService.getAllTrips());
+    }
+
+    /**
+     * FR11 — Update trip privacy.
+     *
+     * <p>Uses PATCH because only one field is being changed.
+     *
+     * @param id trip id from path
+     * @param privacyLevel new privacy enum value from request body
+     * @return HTTP 200 with updated trip, or 404 if trip does not exist
+     */
+    @Override
+    @PatchMapping(value = "/{id}/privacy", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Trip> setTripPrivacy(@PathVariable Long id, @RequestBody Privacy privacyLevel) {
+        return tripService.setTripPrivacy(id, privacyLevel)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 
+import travelmap.model.Privacy;
 import travelmap.model.Trip;
 
 /**
@@ -29,4 +30,13 @@ public interface ITripController {
      * @return HTTP 200 with a JSON array of trips
      */
     ResponseEntity<List<Trip>> getAllTrips();
+
+    /**
+     * FR11 — Update privacy for an existing trip ({@code PATCH /api/trips/{id}/privacy}).
+     *
+     * @param id trip id
+     * @param privacyLevel new privacy level
+     * @return HTTP 200 with updated trip, or 404 if not found
+     */
+    ResponseEntity<Trip> setTripPrivacy(Long id, Privacy privacyLevel);
 }

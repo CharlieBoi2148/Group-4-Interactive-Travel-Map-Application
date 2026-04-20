@@ -6,8 +6,11 @@
  * @param {Object} props
  * @param {Array<Object>} props.pins pins from GET /api/pins
  * @param {Array<Object>} props.trips trips from GET /api/trips (for trip name lookup)
+ * @param {'sidebar'|'main'} [props.variant] layout — main uses full panel height (FR10 dedicated view)
  */
-export default function Timeline({ pins = [], trips = [] }) {
+export default function Timeline({ pins = [], trips = [], variant = 'sidebar' }) {
+  const isMain = variant === 'main';
+  const railBg = isMain ? '#fff' : '#fafafa';
   const formatDate = (d) => {
     if (!d) return '—';
     return typeof d === 'string' ? d : d;
@@ -30,12 +33,20 @@ export default function Timeline({ pins = [], trips = [] }) {
     <div
       data-testid="timeline"
       style={{
-        marginBottom: '16px',
-        borderTop: '1px solid #e0e0e0',
-        paddingTop: '12px',
+        marginBottom: isMain ? 0 : '16px',
+        borderTop: isMain ? 'none' : '1px solid #e0e0e0',
+        paddingTop: isMain ? 0 : '12px',
+        height: isMain ? '100%' : undefined,
+        display: isMain ? 'flex' : undefined,
+        flexDirection: isMain ? 'column' : undefined,
+        minHeight: 0,
+        flex: isMain ? 1 : undefined,
+        boxSizing: 'border-box',
       }}
     >
-      <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>Timeline (FR10)</h3>
+      <h3 style={{ margin: '0 0 12px', fontSize: isMain ? '18px' : '16px', flexShrink: 0 }}>
+        Timeline
+      </h3>
       {ordered.length === 0 ? (
         <p style={{ margin: 0, fontSize: '13px', color: '#666' }}>
           No pins yet. Add pins on the map to see your travel history in order.
@@ -46,7 +57,9 @@ export default function Timeline({ pins = [], trips = [] }) {
             listStyle: 'none',
             padding: 0,
             margin: 0,
-            maxHeight: '35vh',
+            maxHeight: isMain ? 'none' : '35vh',
+            flex: isMain ? 1 : undefined,
+            minHeight: 0,
             overflowY: 'auto',
             borderLeft: '2px solid #1D9E75',
             paddingLeft: '12px',
@@ -78,7 +91,7 @@ export default function Timeline({ pins = [], trips = [] }) {
                     height: '10px',
                     borderRadius: '50%',
                     background: '#1D9E75',
-                    border: '2px solid #fafafa',
+                    border: `2px solid ${railBg}`,
                   }}
                   aria-hidden
                 />
