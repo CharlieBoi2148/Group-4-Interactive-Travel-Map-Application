@@ -11,19 +11,32 @@ import 'leaflet/dist/leaflet.css';
 import './services/mapService';
 import MapView from './components/MapView';
 import PinForm from './components/PinForm';
+import TripList from './components/TripList';
+import Timeline from './components/Timeline';
+import TripForm from './components/TripForm';
 import EditPinForm from './components/EditPinForm';
 import { createPin, getPins, deletePin, updatePin, setPinPrivacy } from './services/pinService';
+import { createTrip, getTrips, setTripPrivacy } from './services/tripService';
 
 function App() {
-
   // pins → fetched from Java backend via GET /api/pins on mount (FR4, FR15)
-  // form → pure UI state for new pin creation, stays in React
+  // form/showTripForm -> pure UI state, stays in React
   // editPin → holds the pin currently being edited, null if no edit open
   // confirmDelete → holds the pin pending deletion, null if no dialog open
+
   const [pins, setPins] = useState([]);
+  const [trips, setTrips] = useState([]);
   const [form, setForm] = useState(null);
   const [editPin, setEditPin] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showTripForm, setShowTripForm] = useState(false);
+  const [tripSaveError, setTripSaveError] = useState(null);
+  const [tripPrivacyError, setTripPrivacyError] = useState(null);
+  // FR10 — main panel toggles between map and dedicated timeline view
+  const [mainView, setMainView] = useState('map');
+
+
+
 
   // FR4, FR15 — load all pins from backend when the app first mounts.
   // This is what makes pins persist across page refreshes — on every load
@@ -32,14 +45,26 @@ function App() {
   // disappear on refresh.
   useEffect(() => {
     getPins()
-      .then(data => {
+      .then((data) => {
         console.log('Loaded pins from backend:', data);
         setPins(data);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Could not load pins from backend:', err);
       });
-  }, []); // empty array — runs once on mount only
+  }, []); // empty array -> runs once on mount only
+
+  // FR4, FR15 — load trips on mount so dashboard can render saved trips.
+  useEffect(() => {
+    getTrips()
+      .then((data) => {
+        console.log('Loaded trips from backend:', data);
+        setTrips(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error('Could not load trips from backend:', err);
+      });
+  }, []);
 
   // Receives click from MapView, opens the create form.
   // Closes any open edit form first — prevents both forms rendering simultaneously.
@@ -49,19 +74,52 @@ function App() {
   };
 
   // Receives save from PinForm, delegates to pinService, updates state.
-  const handleSavePin = async ({ locationName, country, region, visitDate, notes }) => {
+  // async/await so it works the same whether pinService is local or fetch().
+  const handleSavePin = async ({ locationName, country, region, visitDate, notes, tripId }) => {
     if (!form) return;
-    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, country, region, visitDate, notes });
+    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, country, region, visitDate, tripId, notes });
     console.log('Pin returned from backend:', pin);
-    setPins(prev => [...prev, pin]);
+    setPins((prev) => [...prev, pin]);
     setForm(null);
   };
 
-  // Pure UI cancel for create form — closes form, no backend involvement
+  // Pure UI cancel — closes form, no backend involvement
+
   const handleCancel = () => {
     setForm(null);
   };
 
+  // Receives save from TripForm, delegates to tripService, updates state.
+  const handleSaveTrip = async (payload) => {
+    setTripSaveError(null);
+    try {
+      const saved = await createTrip(payload);
+      console.log('Trip returned from backend:', saved);
+      setTrips((prev) => [...prev, saved]);
+      setShowTripForm(false);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Could not save trip. Is backend running on :8080?';
+      setTripSaveError(message);
+      console.error('Could not save trip:', err);
+    }
+  };
+
+  const handleTripPrivacyChange = async (tripId, privacyLevel) => {
+    setTripPrivacyError(null);
+    try {
+      const updated = await setTripPrivacy(tripId, privacyLevel);
+      setTrips((prev) =>
+        prev.map((trip) => (trip.id === updated.id ? { ...trip, privacyLevel: updated.privacyLevel } : trip))
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Could not update trip privacy. Is backend running on :8080?';
+      setTripPrivacyError(message);
+      console.error('Could not update trip privacy:', err);
+    }
+  };
+  
   // FR2 — step 1: MapView calls this when user clicks Edit on a pin.
   // Opens the edit form by storing the pin in editPin state.
   const handleEditPin = (pin) => {
@@ -127,70 +185,259 @@ function App() {
   const handleCancelDelete = () => {
     setConfirmDelete(null);
   };
-
+  
   return (
-    <div style={{ position: 'relative', height: '100vh' }}>
-
-      {/* FR3 — confirmation dialog per SRS requirement */}
-      {confirmDelete && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0,
-          width: '100%', height: '100%',
-          background: 'rgba(0,0,0,0.5)',
-          zIndex: 2000, display: 'flex',
-          alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            background: 'white', padding: '24px',
-            borderRadius: '8px', minWidth: '280px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
-          }}>
-            <h3 style={{ margin: '0 0 12px' }}>Delete Pin</h3>
-            <p style={{ margin: '0 0 20px', color: '#555' }}>
-              Are you sure you want to delete <strong>{confirmDelete.locationName}</strong>? This cannot be undone.
-            </p>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={handleConfirmDelete}
-                style={{ flex: 1, padding: '8px', background: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Delete
-              </button>
-              <button
-                onClick={handleCancelDelete}
-                style={{ flex: 1, padding: '8px', background: '#eee', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+    <div style={{ position: 'relative', height: '100vh', display: 'flex' }}>
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+        }}
+      >
+        <div
+          role="tablist"
+          aria-label="Main view"
+          style={{
+            display: 'flex',
+            gap: '8px',
+            padding: '8px 12px',
+            background: '#fff',
+            borderBottom: '1px solid #ddd',
+            flexShrink: 0,
+          }}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mainView === 'map'}
+            data-testid="main-view-map"
+            onClick={() => setMainView('map')}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              background: mainView === 'map' ? '#1D9E75' : '#f5f5f5',
+              color: mainView === 'map' ? '#fff' : '#333',
+            }}
+          >
+            Map
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mainView === 'timeline'}
+            data-testid="main-view-timeline"
+            onClick={() => {
+              setForm(null);
+              setMainView('timeline');
+            }}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #ccc',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+              background: mainView === 'timeline' ? '#1D9E75' : '#f5f5f5',
+              color: mainView === 'timeline' ? '#fff' : '#333',
+            }}
+          >
+            Timeline
+          </button>
         </div>
-      )}
 
-      {/* FR2 — edit form, only rendered when a pin is selected for editing */}
-      {editPin && (
-        <EditPinForm
-          pin={editPin}
-          onSave={handleUpdatePin}
-          onCancel={handleCancelEdit}
-          onPrivacyChange={handlePrivacyChange}
-        />
-      )}
+        <div style={{ flex: 1, position: 'relative', minHeight: 0, overflow: 'hidden' }}>
+          {mainView === 'map' ? (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                minHeight: 0,
+              }}
+            >
+              {confirmDelete && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    background: 'rgba(0,0,0,0.5)',
+                    zIndex: 2000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      background: 'white',
+                      padding: '24px',
+                      borderRadius: '8px',
+                      minWidth: '280px',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                    }}
+                  >
+                    <h3 style={{ margin: '0 0 12px' }}>Delete Pin</h3>
+                    <p style={{ margin: '0 0 20px', color: '#555' }}>
+                      Are you sure you want to delete <strong>{confirmDelete.locationName}</strong>? This cannot be
+                      undone.
+                    </p>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={handleConfirmDelete}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: '#e53e3e',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Delete
+                      </button>
+                      <button
+                        onClick={handleCancelDelete}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          background: '#eee',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-      {form && (
-        <PinForm
-          latlng={form}
-          onSave={handleSavePin}
-          onCancel={handleCancel}
-        />
-      )}
+              {editPin && (
+                <EditPinForm
+                  pin={editPin}
+                  onSave={handleUpdatePin}
+                  onCancel={handleCancelEdit}
+                  onPrivacyChange={handlePrivacyChange}
+                />
+              )}
 
-      <MapView
-        pins={pins}
-        onMapClick={handleMapClick}
-        onDeletePin={handleDeletePin}
-        onEditPin={handleEditPin}
-      />
+              {form && (
+                <PinForm
+                  latlng={form}
+                  onSave={handleSavePin}
+                  onCancel={handleCancel}
+                  trips={trips}
+                />
+              )}
+              <MapView
+                pins={pins}
+                trips={trips}
+                onMapClick={handleMapClick}
+                onDeletePin={handleDeletePin}
+                onEditPin={handleEditPin}
+              />
+            </div>
+          ) : (
+            <div
+              style={{
+                height: '100%',
+                padding: '12px 16px',
+                boxSizing: 'border-box',
+                background: '#fff',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 0,
+              }}
+            >
+              <Timeline pins={pins} trips={trips} variant="main" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <aside
+        data-testid="trips-sidebar"
+        style={{
+          width: 320,
+          flexShrink: 0,
+          borderLeft: '1px solid #ddd',
+          background: '#fafafa',
+          padding: '12px',
+          overflowY: 'auto',
+          boxSizing: 'border-box',
+        }}
+      >
+        <TripList trips={trips} pins={pins} onTripPrivacyChange={handleTripPrivacyChange} />
+        {tripPrivacyError ? (
+          <p
+            role="alert"
+            style={{
+              color: '#b00020',
+              fontSize: '13px',
+              margin: '0 0 8px',
+              padding: '8px',
+              background: '#ffebee',
+              borderRadius: '6px',
+            }}
+          >
+            {tripPrivacyError}
+          </p>
+        ) : null}
+
+        {!showTripForm ? (
+          <button
+            type="button"
+            onClick={() => setShowTripForm(true)}
+            style={{
+              width: '100%',
+              padding: '10px',
+              background: '#1D9E75',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            New trip
+          </button>
+        ) : (
+          <>
+            {tripSaveError ? (
+              <p
+                role="alert"
+                style={{
+                  color: '#b00020',
+                  fontSize: '13px',
+                  margin: '0 0 8px',
+                  padding: '8px',
+                  background: '#ffebee',
+                  borderRadius: '6px',
+                }}
+              >
+                {tripSaveError}
+              </p>
+            ) : null}
+            <TripForm
+              onSave={handleSaveTrip}
+              onCancel={() => {
+                setTripSaveError(null);
+                setShowTripForm(false);
+              }}
+            />
+          </>
+        )}
+      </aside>
     </div>
   );
 }

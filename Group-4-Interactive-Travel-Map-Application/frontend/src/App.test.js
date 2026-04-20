@@ -26,8 +26,9 @@ jest.mock('./components/MapView', () => ({ pins, onDeletePin, onEditPin }) => (
   </div>
 ));
 
-jest.mock('./services/mapService', () => {});
+jest.mock('./components/Timeline', () => () => <div data-testid="timeline">Timeline</div>);
 
+jest.mock('./services/mapService', () => {});
 
 // Mock pinService so tests never hit the real backend.
 // Implementations are set in beforeEach because resetMocks (CRA default)
@@ -41,8 +42,19 @@ jest.mock('./services/pinService', () => ({
   setPinPrivacy: jest.fn(),
 }));
 
+// Mock tripService because App calls getTrips on mount.
+jest.mock('./services/tripService', () => ({
+  __esModule: true,
+  getTrips: jest.fn(),
+  createTrip: jest.fn(),
+  setTripPrivacy: jest.fn(),
+}));
+
 beforeEach(() => {
   const { getPins, deletePin, updatePin, setPinPrivacy } = require('./services/pinService');
+  const { getTrips } = require('./services/tripService');
+
+  getTrips.mockResolvedValue([]);
   getPins.mockResolvedValue([
     { id: 1, locationName: 'Eiffel Tower', visitDate: '2024-06-01', latitude: 48.8584, longitude: 2.2945, lat: 48.8584, lng: 2.2945 }
   ]);
@@ -269,4 +281,19 @@ test('FR11 — form stays open and does not crash when setPinPrivacy rejects', a
   await waitFor(() =>
     expect(screen.getByText('Edit Pin')).toBeInTheDocument()
   );
+
 });
+
+// ── FR10: View Timeline ─────────────────────────────────────────────────────────
+
+test('FR10 — toggles to timeline view and back to map', () => {
+  render(<App />);
+  expect(screen.getByTestId('map-view')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByTestId('main-view-timeline'));
+  expect(screen.queryByTestId('map-view')).not.toBeInTheDocument();
+  expect(screen.getByTestId('timeline')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByTestId('main-view-map'));
+  expect(screen.getByTestId('map-view')).toBeInTheDocument();
+  });

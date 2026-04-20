@@ -37,9 +37,8 @@ import jakarta.persistence.Id;
  *   FR11 — privacyLevel controls visibility (PRIVATE / FRIENDS_ONLY / PUBLIC)
  *
  * TODO (FR5 — Organize Trip):
- *   Add a tripId field (Long) once Gage's Trip class is merged to dev.
- *   This will be the foreign key linking pins to trips.
- *   Example: @ManyToOne @JoinColumn(name = "trip_id") private Trip trip;
+ *   tripId is currently a simple foreign-key value.
+ *   Upgrade to @ManyToOne mapping once Trip/Pin relationship is finalized.
  */
 @Entity
 public class Pin {
@@ -65,6 +64,9 @@ public class Pin {
     // Sent from React as { latitude, longitude } in the POST /api/pins request body
     private Double latitude;
     private Double longitude;
+
+    // FR5 — optional trip assignment for grouping pins under a trip.
+    private Long tripId;
 
     /**
      * FR11 — privacy setting for this pin.
@@ -119,6 +121,9 @@ public class Pin {
 
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
+
+    public Long getTripId() { return tripId; }
+    public void setTripId(Long tripId) { this.tripId = tripId; }
 
     public Privacy getPrivacyLevel() { return privacyLevel; }
     public void setPrivacyLevel(Privacy privacyLevel) { this.privacyLevel = privacyLevel; }

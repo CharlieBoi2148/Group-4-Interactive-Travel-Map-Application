@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 
-export default function PinForm({ latlng, onSave, onCancel }) {
+export default function PinForm({ latlng, onSave, onCancel, trips = [] }) {
 
   // Controlled inputs — React owns the form state, not the DOM.
   // Using document.getElementById() is a DOM hack that breaks in React.
@@ -14,11 +14,19 @@ export default function PinForm({ latlng, onSave, onCancel }) {
   const [country, setCountry] = useState('');
   const [region, setRegion] = useState('');
   const [visitDate, setVisitDate] = useState('');
+  const [tripId, setTripId] = useState('');
   const [notes, setNotes] = useState('');
 
   const handleSave = () => {
     if (!locationName.trim()) return;
-    onSave({ locationName, country, region, visitDate, notes });
+    onSave({
+      locationName,
+      country,
+      region,
+      visitDate,
+      tripId: tripId === '' ? null : Number(tripId),
+      notes 
+    });
   };
 
   const inputStyle = { width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' };
@@ -62,8 +70,20 @@ export default function PinForm({ latlng, onSave, onCancel }) {
         value={visitDate}
         onChange={e => setVisitDate(e.target.value)}
         type="date"
-        style={inputStyle}
-      />
+        style={inputStyle}      
+      />    
+      <select
+        value={tripId}
+        onChange={(e) => setTripId(e.target.value)}
+        style={{ width: '100%', padding: '8px', marginBottom: '12px', boxSizing: 'border-box' }}
+      >
+        <option value="">No trip (unassigned)</option>
+        {trips.map((trip) => (
+          <option key={trip.id} value={trip.id}>
+            {trip.name}
+          </option>
+        ))}
+      </select>
       <textarea
         value={notes}
         onChange={e => setNotes(e.target.value)}
@@ -71,6 +91,7 @@ export default function PinForm({ latlng, onSave, onCancel }) {
         rows={3}
         style={{ ...inputStyle, marginBottom: '12px', resize: 'vertical' }}
       />
+
 
       {/* Buttons delegate to Controller handlers — View never saves data itself */}
       <div style={{ display: 'flex', gap: '8px' }}>

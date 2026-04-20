@@ -18,12 +18,18 @@ function PinPlacer({ onMapClick }) {
   return null;
 }
 
-export default function MapView({ pins, onMapClick, onDeletePin, onEditPin }) {
+export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onEditPin }) {
+  const tripNameById = new Map(
+    trips
+      .filter((trip) => trip.id != null)
+      .map((trip) => [Number(trip.id), trip.name])
+  );
+
   return (
     <MapContainer
       center={[20, 0]}
       zoom={2}
-      style={{ height: '100vh', width: '100%' }}
+      style={{ height: '100%', width: '100%', minHeight: 0 }}
     >
       {/* TileLayer fetches map tiles from OpenStreetMap
           In full architecture configured inside mapService.js */}
@@ -35,40 +41,64 @@ export default function MapView({ pins, onMapClick, onDeletePin, onEditPin }) {
       {/* Event listener — delegates map click to Controller */}
       <PinPlacer onMapClick={onMapClick} />
 
-      {/* Pin markers — equivalent to View.displayPins(pinList) from UML.
-          In full architecture pins comes from fetch() result, not local state. */}
-      {pins.map(pin => (
-        <Marker key={pin.id} position={[pin.latitude, pin.longitude]}>
-          <Popup>
-            <strong>{pin.locationName}</strong><br />
-            {pin.visitDate}<br /><br />
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {/* FR2 — edit button delegates upward to Controller, never acts directly */}
-              <button
-                onClick={() => onEditPin(pin)}
-                style={{
-                  flex: 1, padding: '6px',
-                  background: '#3182ce', color: 'white',
-                  border: 'none', borderRadius: '4px', cursor: 'pointer'
-                }}
-              >
-                Edit
-              </button>
-              {/* FR3 — delete button delegates upward to Controller, never acts directly */}
-              <button
-                onClick={() => onDeletePin(pin)}
-                style={{
-                  flex: 1, padding: '6px',
-                  background: '#e53e3e', color: 'white',
-                  border: 'none', borderRadius: '4px', cursor: 'pointer'
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+{/* Pin markers — supports latitude/longitude with lat/lng fallback */}
+{pins
+  .map((pin, index) => {
+    const lat = Number(pin.latitude ?? pin.lat);
+    const lng = Number(pin.longitude ?? pin.lng);
+    return { pin, lat, lng, index, ok: Number.isFinite(lat) && Number.isFinite(lng) };
+  })
+  .filter((x) => x.ok)
+  .map(({ pin, lat, lng, index }) => (
+    <Marker key={pin.id != null ? String(pin.id) : `pin-${index}`} position={[lat, lng]}>
+      <Popup>
+        <strong>{pin.locationName}</strong>
+        <br />
+        {pin.visitDate}
+        {pin.tripId != null ? (
+          <>
+            <br />
+            <span style={{ color: '#555' }}>
+              Trip: {tripNameById.get(Number(pin.tripId)) || `#${pin.tripId}`}
+            </span>
+          </>
+        ) : null}
+
+        <br />
+        <br />
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button
+            onClick={() => onEditPin?.(pin)}
+            style={{
+              flex: 1,
+              padding: '6px',
+              background: '#3182ce',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => onDeletePin?.(pin)}
+            style={{
+              flex: 1,
+              padding: '6px',
+              background: '#e53e3e',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      </Popup>
+    </Marker>
+  ))}
     </MapContainer>
   );
 }
