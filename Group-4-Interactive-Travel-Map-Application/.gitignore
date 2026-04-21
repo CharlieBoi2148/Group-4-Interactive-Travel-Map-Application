@@ -1,0 +1,11 @@
+CLAUDE.md
+
+.vscode/
+
+backend/target/
+frontend/node_modules/
+frontend/build/
+.env
+.DS_Store
+*.class
+*.log
