@@ -47,10 +47,11 @@ import travelmap.model.Privacy;
  *   FR4  — findAll() used by PinService.getAllPins()
  *   FR11 — findByPrivacyLevel() used to filter pins by visibility
  *
- * TODO (FR5 — coordinate with Gage):
- *   Once Gage's Trip class is merged to dev, add:
- *   List<Pin> findByTripId(Long tripId)
- *   This retrieves all pins belonging to a specific trip.
+ * FR5 (added April 24, 2026):
+ *   findByTripId(Long tripId) is implemented below.
+ *   Trip.java is a @Entity; Trip.pins is @Transient, so the only reliable
+ *   way to retrieve a trip's pins is to query the pin table by tripId.
+ *
  *
  * NFR4 (added April 24, 2026):
  *   findByOwnerId(String ownerId) is implemented below.
@@ -111,4 +112,22 @@ public interface PinRepository extends JpaRepository<Pin, Long> {
      * @return list of pins owned by the given user, empty list if none exist
      */
     List<Pin> findByOwnerId(String ownerId);
+
+    /**
+     * FR8, FR5 — Find all pins assigned to a specific trip.
+     *
+     * Used by MapController when computing total trip distance. Trip.pins
+     * is @Transient so it does not hydrate from the database — the only
+     * reliable way to retrieve a trip's pins is to query the pin table by
+     * tripId. Implemented April 24, 2026 to unblock FR8 distance calculation.
+     *
+     * Spring Data JPA generates: SELECT * FROM pin WHERE trip_id = ?
+     * Returns an empty list if the trip has no pins — never null.
+     * Caller is responsible for sorting by visitDate (FR5 chronological order)
+     * since the database does not guarantee any particular row order.
+     *
+     * @param tripId the database id of the trip whose pins should be returned
+     * @return list of pins assigned to the given trip, empty list if none exist
+     */
+    List<Pin> findByTripId(Long tripId);
 }
