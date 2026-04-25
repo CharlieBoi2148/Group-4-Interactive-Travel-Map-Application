@@ -52,12 +52,13 @@ import travelmap.model.Privacy;
  *   List<Pin> findByTripId(Long tripId)
  *   This retrieves all pins belonging to a specific trip.
  *
- * TODO (FR4, NFR4 — coordinate with Wilson):
- *   Once Wilson's auth is merged, add:
- *   List<Pin> findByOwnerId(Long ownerId)
- *   This filters pins by the authenticated user so users only see their own pins.
- *   Wilson's AccountFacade.getCurrentUser() provides the ownerId.
- *   Also requires adding an ownerId field to the Pin model.
+ * NFR4 (added April 24, 2026):
+ *   findByOwnerId(String ownerId) is implemented below.
+ *   Pin.ownerId is a String to match Gage's Trip.ownerId and to stay
+ *   flexible regardless of Wilson's eventual User ID type.
+ *   PinService.getAllPins() will be updated to call findByOwnerId once
+ *   Wilson's AuthController can supply the authenticated user's ownerId.
+ *   Until then, this method exists but is not yet wired into the request flow.
  */
 @Repository
 public interface PinRepository extends JpaRepository<Pin, Long> {
@@ -92,4 +93,22 @@ public interface PinRepository extends JpaRepository<Pin, Long> {
      * @return list of pins whose location name contains the keyword
      */
     List<Pin> findByLocationNameContainingIgnoreCase(String keyword);
+
+    /**
+     * NFR4, FR4 — Find all pins owned by a specific user.
+     *
+     * Used to scope GET /api/pins so that users see only their own pins.
+     * Fixes the NFR4 security violation where the previous unfiltered
+     * findAll() call returned every user's pins to any logged-in user.
+     *
+     * Spring Data JPA generates: SELECT * FROM pin WHERE owner_id = ?
+     * Returns an empty list if no pins match — never null.
+     *
+     * Example usage in PinService (once auth is wired in):
+     *   List<Pin> myPins = pinRepository.findByOwnerId(currentUser.getId());
+     *
+     * @param ownerId the ID of the user whose pins should be returned
+     * @return list of pins owned by the given user, empty list if none exist
+     */
+    List<Pin> findByOwnerId(String ownerId);
 }
