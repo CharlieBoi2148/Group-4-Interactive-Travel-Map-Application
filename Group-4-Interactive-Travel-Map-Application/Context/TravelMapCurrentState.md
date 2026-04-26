@@ -140,7 +140,9 @@ Group-4-Interactive-Travel-Map-Application/
 │       │   │   │   ├── MapService.java                 interface (STUBBED)
 │       │   │   │   └── UserRepository.java             interface (STUBBED)
 │       │   │   ├── map/
-│       │   │   │   └── MapAPIClient.java               @Component implements MapService (STUBBED)
+│       │   │   │   ├── DistanceCalculator.java         Pure-math Haversine utility, no Spring (IMPLEMENTED)
+│       │   │   │   ├── DistanceResult.java             DTO: distanceKm, distanceMi, unit, skippedPinIds (IMPLEMENTED)
+│       │   │   │   └── MapAPIClient.java               @Component implements MapService (IMPLEMENTED)
 │       │   │   ├── model/
 │       │   │   │   ├── Pin.java                        @Entity (IMPLEMENTED)
 │       │   │   │   ├── Privacy.java                    enum PRIVATE/FRIENDS_ONLY/PUBLIC (IMPLEMENTED)
@@ -159,7 +161,10 @@ Group-4-Interactive-Travel-Map-Application/
 │       │       └── application.properties              H2 config; PostgreSQL commented out
 │       └── test/java/travelmap/
 │           ├── PinServiceTest.java                     15 unit tests (IMPLEMENTED)
-│           └── PinControllerTest.java                  10 integration tests (IMPLEMENTED)
+│           ├── PinControllerTest.java                  10 integration tests (IMPLEMENTED)
+│           ├── DistanceCalculatorTest.java             22 unit tests, input partitioning (IMPLEMENTED)
+│           ├── DistanceResultTest.java                 14 unit tests (IMPLEMENTED)
+│           └── MapAPIClientTest.java                   19 unit tests, Mockito (IMPLEMENTED)
 │
 └── frontend/
     ├── package.json                                    React 19.2.4, Leaflet 1.9.4
@@ -274,7 +279,7 @@ Available at: `http://localhost:8080/h2-console`
 | `PinController.java` | [IMPLEMENTED] | `@RestController`, `@RequestMapping("/api/pins")`, `@CrossOrigin("http://localhost:3000")`. Implements `IPinController`. All 5 endpoints working with correct HTTP status codes. Constructor injection of `PinService`. |
 | `AppController.java` | [STUBBED] | `@RestController`, no `@RequestMapping`. Holds references to all controller/service interfaces via field injection (not constructor). No methods implemented. Not a REST entry point — structural orchestrator only. |
 | `TripController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/trips")`. Implements `ITripController`. All 3 methods present but return void with empty bodies. |
-| `MapController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/map")`. Implements `IMapController`. 2 methods, empty bodies. Has `MapService` field (not injected). |
+| `MapController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/map")`, `@CrossOrigin`. Implements `IMapController`. 3 endpoints (`/distance/pins`, `/distance/trip`, `/distance/total`) all return HTTP 501. MapService injection pending (Step 11). |
 | `MediaController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/media")`. Implements `IMediaController`. 1 method, empty body. |
 | `SearchController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/search")`. Implements `ISearchController`. 2 methods, empty bodies. |
 | `SharingController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/share")`. Implements `ISharingController`. 1 method, empty body. |
@@ -282,7 +287,7 @@ Available at: `http://localhost:8080/h2-console`
 #### `travelmap.repository`
 | Class | Status | Notes |
 |---|---|---|
-| `PinRepository.java` | [IMPLEMENTED] | `@Repository` interface, extends `JpaRepository<Pin, Long>`. Custom methods: `findByPrivacyLevel(Privacy)`, `findByLocationNameContainingIgnoreCase(String)`. Spring Data JPA generates SQL from method names. |
+| `PinRepository.java` | [IMPLEMENTED] | `@Repository` interface, extends `JpaRepository<Pin, Long>`. Custom methods: `findByPrivacyLevel(Privacy)`, `findByLocationNameContainingIgnoreCase(String)`, `findByTripId(Long)`, `findByOwnerId(String)`. Spring Data JPA generates SQL from method names. |
 | `PinService.java` | [IMPLEMENTED] | `@Service`. **WRONG PACKAGE** — currently in `travelmap.repository`, must move to `travelmap.service` before final submission. Constructor injection of `PinRepository`. All 5 methods fully implemented: `createPin()`, `getAllPins()`, `updatePin()`, `deletePin()`, `setPinPrivacy()`. |
 | `UserRepositoryImpl.java` | [STUBBED] | `@Repository`, implements `UserRepository`. All 3 methods return `null`/do nothing. |
 
@@ -299,21 +304,23 @@ Available at: `http://localhost:8080/h2-console`
 #### `travelmap.map`
 | Class | Status | Notes |
 |---|---|---|
-| `MapAPIClient.java` | [STUBBED] | `@Component`, implements `MapService`. `renderMap()` does nothing; `calculateDistance()` returns `0.0f`. |
+| `DistanceCalculator.java` | [IMPLEMENTED] | Pure-static math utility. `haversineKm(lat1,lon1,lat2,lon2)` with coordinate validation (IAE on null/out-of-range). `kmToMiles(km)`. EARTH_RADIUS_KM=6371.0. No Spring annotations. |
+| `DistanceResult.java` | [IMPLEMENTED] | DTO. Constructor: `DistanceResult(double distanceKm, String unit, List<Long> skippedPinIds)`. Fields: `distanceKm`, `distanceMi`, `preferred`, `unit`, `skippedPinIds` (defensive unmodifiable copy). `"mi".equalsIgnoreCase(unit)` → unit="mi", else "km". |
+| `MapAPIClient.java` | [IMPLEMENTED] | `@Component`, implements `MapService`. Constructor injection of `PinRepository` and `TripRepository`. `getDistanceBetween()` delegates to `DistanceCalculator`. `getTripDistance()` sorts pins by visitDate (nullsLast), skips null-coord pins, sums Haversine between consecutive usable pairs. `getTotalDistance()` accumulates across all owner trips. Private `computeTripDistance()` + `TripDistanceComputation` inner class. |
 
 #### `travelmap.interfaces`
 | Interface | Status | Notes |
 |---|---|---|
 | `IPinController.java` | [IMPLEMENTED] | Full Javadoc, all 5 method signatures defined with `ResponseEntity<T>` return types |
 | `ITripController.java` | [STUBBED] | 3 methods, void returns |
-| `IMapController.java` | [STUBBED] | 2 methods, void returns |
+| `IMapController.java` | [IMPLEMENTED] | 3 methods with `ResponseEntity<DistanceResult>` return types: `getDistanceBetween`, `getTripDistance`, `getTotalDistance`. Full Javadoc. |
 | `IMediaController.java` | [STUBBED] | 1 method, void return |
 | `ISearchController.java` | [STUBBED] | 2 methods, void returns |
 | `ISharingController.java` | [STUBBED] | 1 method, void return |
 | `IAuthService.java` | [STUBBED] | 2 methods: `isLoggedIn()`, `getCurrentUser()` |
 | `IProfileService.java` | [STUBBED] | 1 method: `updateProfile()` |
 | `IRegistrationService.java` | [STUBBED] | 1 method: `register()` |
-| `MapService.java` | [STUBBED] | 2 methods: `renderMap()`, `calculateDistance()` |
+| `MapService.java` | [IMPLEMENTED] | 4 methods: `getDistanceBetween()`, `getTripDistance()`, `getTotalDistance()`, `renderMap()`. Full Javadoc. Replaces skeleton `calculateDistance()`. |
 | `UserRepository.java` | [STUBBED] | 3 methods: `findByUsername()`, `save()`, `update()` |
 
 ### REST Endpoints
@@ -369,15 +376,24 @@ The import is already present. This TODO item has been resolved and should be re
 
 ### Test Inventory
 
-| Test File | Tests | FRs Covered |
-|---|---|---|
-| `PinServiceTest.java` | 15 | FR1 (6 tests), FR4 (2 tests), FR2 (3 tests), FR3 (2 tests), FR11 (2 tests) |
-| `PinControllerTest.java` | 10 | FR1 (2 tests), FR4 (2 tests), FR2 (2 tests), FR3 (2 tests), FR11 (2 tests) |
-| `App.test.js` | 1 | FR6 (MapView mounts correctly) |
-| `PinForm.test.js` | 8 | FR1 (form inputs, save, cancel interactions) |
-| **Total** | **34** | |
+| Test File | Type | Tests | FRs Covered |
+|---|---|---|---|
+| `PinServiceTest.java` | Backend unit | 15 | FR1 (6), FR4 (2), FR2 (3), FR3 (2), FR11 (2) |
+| `PinControllerTest.java` | Backend integration | 10 | FR1 (2), FR4 (2), FR2 (2), FR3 (2), FR11 (2) |
+| `TripServiceTest.java` | Backend unit | 11 | FR5 — trip CRUD and timeline sort |
+| `TripControllerTest.java` | Backend integration | 4 | FR5 — trip endpoints |
+| `DistanceCalculatorTest.java` | Backend unit | 22 | FR8 — Haversine math, coordinate validation, unit conversion |
+| `DistanceResultTest.java` | Backend unit | 14 | FR8 — DTO construction, unit selection, skipped pins, defensive copy |
+| `MapAPIClientTest.java` | Backend unit (Mockito) | 19 | FR8 — all 3 distance modes, null coords, sort order, ownerId validation |
+| `MapControllerTest.java` | Backend integration | 12 | FR8 — all 3 endpoints, 200/400/404 paths, unit param, skippedPinIds |
+| `App.test.js` | Frontend | 5 | FR6 (1), FR3 delete flow (4) |
+| `PinForm.test.js` | Frontend | 8 | FR1 — form inputs, save, cancel |
+| `MapView.test.js` | Frontend | 6 | FR6 markers (3), FR3 delete button (3) |
+| **Backend Total** | | **107** | Confirmed: `mvn test` BUILD SUCCESS |
+| **Frontend Total** | | **53** | Confirmed: `npm test` passing |
+| **Grand Total** | | **160** | |
 
-> **⚠️ Note:** CLAUDE.md claims 36 total tests. Verified count from live code is **34**. The floor is 34 — this count must never decrease.
+> **⚠️ Floor:** 107 backend / 53 frontend / 160 total — this count must never decrease. Run both `mvn test` and `npm test` before any merge.
 
 ---
 
@@ -392,7 +408,7 @@ The import is already present. This TODO item has been resolved and should be re
 | FR5 | Organize Trip | **Not Started** | `TripController` (stub), `TripService` (MISSING), `TripRepository` (MISSING), `Trip` (stub POJO) | (not started) | none |
 | FR6 | Visualize Map | **Complete** | (map tiles served by OpenStreetMap externally) | `MapView.jsx`, `mapService.js`, `App.js` | `App.test.js` (1) |
 | FR7 | Upload Media | **Not Started** | `MediaController` (stub), `Media` (stub POJO) | (not started) | none |
-| FR8 | Calculate Distances | **Not Started** | `MapAPIClient.calculateDistance()` (stub returns 0.0f), `MapController` (stub) | (not started) | none |
+| FR8 | Calculate Distances | **Backend Complete** | `DistanceCalculator.java` (IMPL), `DistanceResult.java` (IMPL), `MapAPIClient.java` (IMPL — all 3 modes), `MapController.java` (IMPL — `@GetMapping`, `/trip/{tripId}`, `/total`) | Frontend pending (`feature/map-distance-ui`) | `DistanceCalculatorTest.java` (22), `DistanceResultTest.java` (14), `MapAPIClientTest.java` (19), `MapControllerTest.java` (12) |
 | FR9 | Filter and Search | **Not Started** | `SearchController.handleFilterSearch()` (stub), `PinRepository.findByLocationNameContainingIgnoreCase()` (IMPLEMENTED) | (not started) | none |
 | FR10 | View Timeline | **Not Started** | `TripController.handleViewTimeline()` (stub) | (not started) | none |
 | FR11 | Set Pin Privacy | **In Progress** | `PinController.setPinPrivacy()`, `PinService.setPinPrivacy()`, `Privacy` enum | (UI for privacy not yet wired in React) | `PinServiceTest.java` (2), `PinControllerTest.java` (2) |
@@ -559,7 +575,7 @@ The import is already present. This TODO item has been resolved and should be re
 | NFR2 | Any user input response | ≤ 2.5 seconds |
 
 ### Test Count Floor
-- **Current verified test count: 34** (15 PinServiceTest + 10 PinControllerTest + 1 App.test.js + 8 PinForm.test.js)
+- **Backend: 107** | **Frontend: 53** | **Total: 160**
 - **This number must never decrease.** Every increment must run both `mvn test` and `npm test` before being declared complete.
 - Every new REST endpoint requires a corresponding JUnit test in `PinControllerTest.java` (or a new test file).
 - Every new public service method requires a corresponding unit test in the relevant test file.
@@ -584,7 +600,7 @@ The import is already present. This TODO item has been resolved and should be re
 
 2. **Read `CLAUDE.md` before writing any code.** It is the authoritative description of the current implementation state. This Master Context Document supplements it — both must be read.
 
-3. **Never reduce the passing test count below 34.** Run `mvn test` AND `npm test` and confirm both pass before declaring any increment complete.
+3. **Never reduce the passing test count below 107 (backend) / 53 (frontend) / 160 (total).** Run `mvn test` AND `npm test` and confirm both pass before declaring any increment complete.
 
 4. **Never move a class to a different package without explicit instruction.** In particular, do not move `PinService.java` to `travelmap.service` unless the user explicitly requests it, even though CLAUDE.md marks it as a TODO.
 
@@ -630,3 +646,5 @@ The import is already present. This TODO item has been resolved and should be re
 |---|---|---|
 | 2026-04-08 | Master Context Generator | Initial document created from live code audit. Verified 34 tests (not 36 as CLAUDE.md claims). Confirmed `PinControllerTest` import already fixed. Noted MapView uses `pin.latitude`/`pin.longitude` (not `pin.lat`/`pin.lng`). |
 | 2026-04-08 | Charlie | Renamed package.json name field from "leaflet-test" to "travel-map" |
+| 2026-04-25 | Charlie | FR8 distance layer complete (service only — controller Step 11 pending). New files: DistanceCalculator, DistanceResult, MapAPIClientTest. Updated: IMapController (3 ResponseEntity methods), MapService (4 FR8 signatures), MapAPIClient (fully implemented), PinRepository (findByTripId + findByOwnerId). Test floor: 95 backend / 53 frontend / 148 total. |
+| 2026-04-26 | Charlie | Implemented MapController (12 tests), all four commits pushed to feature/map-controller. Backend floor: 107. Total floor: 160. PR to dev pending. |
