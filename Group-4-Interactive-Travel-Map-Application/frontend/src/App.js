@@ -17,6 +17,8 @@ import TripForm from './components/TripForm';
 import EditPinForm from './components/EditPinForm';
 import { createPin, getPins, deletePin, updatePin, setPinPrivacy } from './services/pinService';
 import { createTrip, getTrips, setTripPrivacy } from './services/tripService';
+import DistancePanel from './components/DistancePanel';
+import { getPinToPin, getTripDistance } from './services/mapDistanceService';
 
 function App() {
   // pins → fetched from Java backend via GET /api/pins on mount (FR4, FR15)
@@ -34,6 +36,13 @@ function App() {
   const [tripPrivacyError, setTripPrivacyError] = useState(null);
   // FR10 — main panel toggles between map and dedicated timeline view
   const [mainView, setMainView] = useState('map');
+
+  const [measuringFrom, setMeasuringFrom] = useState(null);
+  const [measuredTo, setMeasuredTo] = useState(null);
+  const [distanceResult, setDistanceResult] = useState(null);
+  const [distanceError, setDistanceError] = useState(null);
+  const [distanceLoading, setDistanceLoading] = useState(false);
+  const [tripDistances, setTripDistances] = useState({});
 
 
 
@@ -65,6 +74,22 @@ function App() {
         console.error('Could not load trips from backend:', err);
       });
   }, []);
+
+  // FR8 — fetch trip distance for each trip when trips list changes.
+  // Silent catch: distance is supplementary info, not critical to the UI.
+  useEffect(() => {
+    if (trips.length === 0) return;
+    trips.forEach((trip) => {
+      if (trip.id == null) return;
+      getTripDistance(trip.id, 'km')
+        .then((result) => {
+          setTripDistances((prev) => ({ ...prev, [Number(trip.id)]: result }));
+        })
+        .catch(() => {
+          // Silently ignore — distance is supplementary info, not critical
+        });
+    });
+  }, [trips, pins]);
 
   // Receives click from MapView, opens the create form.
   // Closes any open edit form first — prevents both forms rendering simultaneously.
@@ -184,6 +209,55 @@ function App() {
   // FR3 — user cancelled deletion dialog
   const handleCancelDelete = () => {
     setConfirmDelete(null);
+  };
+
+  // FR8 — pin-to-pin distance measurement.
+  // First click sets pin A (measuringFrom). Second click on a different pin
+  // triggers the fetch and shows the result in DistancePanel.
+  const handleMeasurePin = async (pin) => {
+    // Cancel if user clicks the same pin twice
+    if (measuringFrom && measuringFrom.id === pin.id) {
+      setMeasuringFrom(null);
+      setDistanceResult(null);
+      setDistanceError(null);
+      return;
+    }
+
+    // First click — set pin A, wait for pin B
+    if (!measuringFrom) {
+      setDistanceResult(null);
+      setDistanceError(null);
+      setMeasuringFrom(pin);
+      return;
+    }
+
+    // Second click — fetch distance between pin A and pin B
+    setMeasuredTo(pin);
+    setDistanceLoading(true);
+    setDistanceError(null);
+    try {
+      const result = await getPinToPin(
+        measuringFrom.latitude,
+        measuringFrom.longitude,
+        pin.latitude,
+        pin.longitude,
+        'km'
+      );
+      setDistanceResult(result);
+    } catch (err) {
+      setDistanceError(err.message || 'Could not calculate distance.');
+    } finally {
+      setDistanceLoading(false);
+    }
+  };
+
+  // Cancel measuring mode — clears all distance state
+  const handleCancelMeasure = () => {
+    setMeasuringFrom(null);
+    setMeasuredTo(null);
+    setDistanceResult(null);
+    setDistanceError(null);
+    setDistanceLoading(false);
   };
   
   return (
@@ -338,12 +412,22 @@ function App() {
                   trips={trips}
                 />
               )}
+              <DistancePanel
+                measuringFrom={measuringFrom}
+                measuredTo={measuredTo}
+                result={distanceResult}
+                error={distanceError}
+                loading={distanceLoading}
+                onCancel={handleCancelMeasure}
+              />
               <MapView
                 pins={pins}
                 trips={trips}
                 onMapClick={handleMapClick}
                 onDeletePin={handleDeletePin}
                 onEditPin={handleEditPin}
+                onMeasurePin={handleMeasurePin}
+                measuringFrom={measuringFrom}
               />
             </div>
           ) : (
@@ -377,7 +461,7 @@ function App() {
           boxSizing: 'border-box',
         }}
       >
-        <TripList trips={trips} pins={pins} onTripPrivacyChange={handleTripPrivacyChange} />
+        <TripList trips={trips} pins={pins} onTripPrivacyChange={handleTripPrivacyChange} tripDistances={tripDistances} />
         {tripPrivacyError ? (
           <p
             role="alert"

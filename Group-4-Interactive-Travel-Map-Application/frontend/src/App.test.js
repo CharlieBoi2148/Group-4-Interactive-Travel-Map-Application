@@ -1,11 +1,12 @@
 // --- APP TESTS ----------------------------------------------------------------
 // FR6: Visualize Map — App correctly mounts MapView as top-level View component
 // FR3: Delete Travel Pin — confirmation dialog appears and delete/cancel work
+// FR8: Distance measurement — DistancePanel visibility, measure flow, trip distances
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from './App';
 
-// Mock MapView — renders pins and exposes a delete and edit button per pin
-jest.mock('./components/MapView', () => ({ pins, onDeletePin, onEditPin }) => (
+// Mock MapView — renders pins and exposes delete, edit, and measure buttons per pin
+jest.mock('./components/MapView', () => ({ pins, onDeletePin, onEditPin, onMeasurePin }) => (
   <div data-testid="map-view">
     {pins.map(pin => (
       <div key={pin.id}>
@@ -20,6 +21,12 @@ jest.mock('./components/MapView', () => ({ pins, onDeletePin, onEditPin }) => (
           onClick={() => onEditPin(pin)}
         >
           Edit {pin.locationName}
+        </button>
+        <button
+          data-testid={`measure-btn-${pin.id}`}
+          onClick={() => onMeasurePin?.(pin)}
+        >
+          Measure {pin.locationName}
         </button>
       </div>
     ))}
@@ -50,9 +57,15 @@ jest.mock('./services/tripService', () => ({
   setTripPrivacy: jest.fn(),
 }));
 
+jest.mock('./services/mapDistanceService', () => ({
+  getPinToPin: jest.fn(),
+  getTripDistance: jest.fn(),
+}));
+
 beforeEach(() => {
   const { getPins, deletePin, updatePin, setPinPrivacy } = require('./services/pinService');
   const { getTrips } = require('./services/tripService');
+  const { getPinToPin, getTripDistance } = require('./services/mapDistanceService');
 
   getTrips.mockResolvedValue([]);
   getPins.mockResolvedValue([
@@ -65,6 +78,8 @@ beforeEach(() => {
   setPinPrivacy.mockResolvedValue(
     { id: 1, locationName: 'Eiffel Tower', visitDate: '2024-06-01', notes: '', privacyLevel: 'PUBLIC', latitude: 48.8584, longitude: 2.2945, lat: 48.8584, lng: 2.2945 }
   );
+  getPinToPin.mockResolvedValue({ distanceKm: 0, distanceMi: 0, skippedPinIds: [] });
+  getTripDistance.mockResolvedValue({ distanceKm: 0, distanceMi: 0, skippedPinIds: [] });
 });
 
 // ── FR6: Map renders ──────────────────────────────────────────────────────────
@@ -297,3 +312,133 @@ test('FR10 — toggles to timeline view and back to map', () => {
   fireEvent.click(screen.getByTestId('main-view-map'));
   expect(screen.getByTestId('map-view')).toBeInTheDocument();
   });
+
+// Two-pin fixture shared by FR8 distance flow tests
+const pinA = { id: 1, locationName: 'Eiffel Tower', visitDate: '2024-06-01', latitude: 48.8584, longitude: 2.2945, lat: 48.8584, lng: 2.2945 };
+const pinB = { id: 2, locationName: 'Colosseum', visitDate: '2024-07-15', latitude: 41.8902, longitude: 12.4922, lat: 41.8902, lng: 12.4922 };
+
+// ── FR8: Distance Panel Visibility ────────────────────────────────────────────
+
+test('distancePanel_notVisibleOnInitialRender_FR8', async () => {
+  render(<App />);
+  await waitFor(() => screen.getByTestId('delete-btn-1'));
+  expect(screen.queryByTestId('distance-panel')).not.toBeInTheDocument();
+});
+
+test('distancePanel_becomesVisible_afterFirstMeasureClick_FR8', async () => {
+  render(<App />);
+  await waitFor(() => screen.getByTestId('measure-btn-1'));
+  fireEvent.click(screen.getByTestId('measure-btn-1'));
+  expect(screen.getByTestId('distance-panel')).toBeInTheDocument();
+});
+
+// ── FR8: Measure Flow ─────────────────────────────────────────────────────────
+
+test('handleMeasurePin_firstClick_showsWaitingMessageWithPinAName_FR8', async () => {
+  render(<App />);
+  await waitFor(() => screen.getByTestId('measure-btn-1'));
+  fireEvent.click(screen.getByTestId('measure-btn-1'));
+  expect(screen.getByText(/Measuring from: Eiffel Tower/)).toBeInTheDocument();
+});
+
+test('handleMeasurePin_secondClick_callsGetPinToPin_withCorrectArgs_FR8', async () => {
+  const { getPins } = require('./services/pinService');
+  const { getPinToPin } = require('./services/mapDistanceService');
+  getPins.mockResolvedValueOnce([pinA, pinB]);
+
+  render(<App />);
+  await waitFor(() => screen.getByTestId('measure-btn-2'));
+  fireEvent.click(screen.getByTestId('measure-btn-1'));
+  fireEvent.click(screen.getByTestId('measure-btn-2'));
+
+  await waitFor(() =>
+    expect(getPinToPin).toHaveBeenCalledWith(48.8584, 2.2945, 41.8902, 12.4922, 'km')
+  );
+});
+
+test('handleMeasurePin_onResolve_showsKmAndMiValues_FR8', async () => {
+  const { getPins } = require('./services/pinService');
+  const { getPinToPin } = require('./services/mapDistanceService');
+  getPins.mockResolvedValueOnce([pinA, pinB]);
+  getPinToPin.mockResolvedValueOnce({ distanceKm: 1105.0, distanceMi: 686.8, skippedPinIds: [] });
+
+  render(<App />);
+  await waitFor(() => screen.getByTestId('measure-btn-2'));
+  fireEvent.click(screen.getByTestId('measure-btn-1'));
+  fireEvent.click(screen.getByTestId('measure-btn-2'));
+
+  await waitFor(() =>
+    expect(screen.getByTestId('distance-panel').textContent).toMatch(/1105\.0 km/)
+  );
+  expect(screen.getByTestId('distance-panel').textContent).toMatch(/686\.8 mi/);
+});
+
+test('handleMeasurePin_onReject_showsErrorMessage_FR8', async () => {
+  const { getPins } = require('./services/pinService');
+  const { getPinToPin } = require('./services/mapDistanceService');
+  getPins.mockResolvedValueOnce([pinA, pinB]);
+  getPinToPin.mockRejectedValueOnce(new Error('Network error'));
+
+  render(<App />);
+  await waitFor(() => screen.getByTestId('measure-btn-2'));
+  fireEvent.click(screen.getByTestId('measure-btn-1'));
+  fireEvent.click(screen.getByTestId('measure-btn-2'));
+
+  await waitFor(() => screen.getByRole('alert'));
+  expect(screen.getByRole('alert')).toHaveTextContent('Network error');
+});
+
+test('handleMeasurePin_samePin_cancelsAndPanelDisappears_FR8', async () => {
+  render(<App />);
+  await waitFor(() => screen.getByTestId('measure-btn-1'));
+
+  fireEvent.click(screen.getByTestId('measure-btn-1'));
+  expect(screen.getByTestId('distance-panel')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByTestId('measure-btn-1'));
+  expect(screen.queryByTestId('distance-panel')).not.toBeInTheDocument();
+});
+
+// ── FR8: Cancel ───────────────────────────────────────────────────────────────
+
+test('handleCancelMeasure_clearsPanelState_FR8', async () => {
+  render(<App />);
+  await waitFor(() => screen.getByTestId('measure-btn-1'));
+
+  fireEvent.click(screen.getByTestId('measure-btn-1'));
+  expect(screen.getByTestId('distance-panel')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByText('Cancel'));
+  expect(screen.queryByTestId('distance-panel')).not.toBeInTheDocument();
+});
+
+// ── FR8: Trip Distances ───────────────────────────────────────────────────────
+
+test('tripDistances_getTripDistance_calledForEachTrip_FR8', async () => {
+  const { getTrips } = require('./services/tripService');
+  const { getTripDistance } = require('./services/mapDistanceService');
+  getTrips.mockResolvedValueOnce([
+    { id: 1, name: 'Europe Trip', privacyLevel: 'PRIVATE' },
+    { id: 2, name: 'Asia Trip', privacyLevel: 'PRIVATE' },
+  ]);
+
+  render(<App />);
+
+  await waitFor(() => expect(getTripDistance).toHaveBeenCalledWith(1, 'km'));
+  expect(getTripDistance).toHaveBeenCalledWith(2, 'km');
+});
+
+test('tripDistances_result_renderedInTripList_FR8', async () => {
+  const { getTrips } = require('./services/tripService');
+  const { getTripDistance } = require('./services/mapDistanceService');
+  getTrips.mockResolvedValueOnce([
+    { id: 1, name: 'Europe Trip', privacyLevel: 'PRIVATE' },
+  ]);
+  getTripDistance.mockResolvedValueOnce({ distanceKm: 500.0, distanceMi: 310.7, skippedPinIds: [] });
+
+  render(<App />);
+
+  const sidebar = screen.getByTestId('trips-sidebar');
+  await waitFor(() => expect(sidebar.textContent).toMatch(/500\.0 km/));
+  expect(sidebar.textContent).toMatch(/310\.7 mi/);
+});

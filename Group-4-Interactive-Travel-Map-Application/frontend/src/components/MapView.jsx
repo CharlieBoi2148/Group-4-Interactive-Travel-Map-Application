@@ -18,7 +18,7 @@ function PinPlacer({ onMapClick }) {
   return null;
 }
 
-export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onEditPin }) {
+export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onEditPin, onMeasurePin, measuringFrom }) {
   const tripNameById = new Map(
     trips
       .filter((trip) => trip.id != null)
@@ -66,7 +66,7 @@ export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onE
 
         <br />
         <br />
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
           <button
             onClick={() => onEditPin?.(pin)}
             style={{
@@ -94,6 +94,20 @@ export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onE
             }}
           >
             Delete
+          </button>
+          <button
+            onClick={() => onMeasurePin?.(pin)}
+            style={{
+              flex: 1,
+              padding: '6px',
+              background: measuringFrom && measuringFrom.id === pin.id ? '#805ad5' : '#718096',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            {measuringFrom && measuringFrom.id === pin.id ? 'Cancel' : 'Measure'}
           </button>
         </div>
       </Popup>
