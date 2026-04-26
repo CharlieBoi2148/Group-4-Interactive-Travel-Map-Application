@@ -7,7 +7,7 @@
  * @param {Array<Object>} props.pins pins from GET /api/pins
  * @param {function(number,string):void} [props.onTripPrivacyChange] callback for privacy update
  */
-export default function TripList({ trips, pins = [], onTripPrivacyChange }) {
+export default function TripList({ trips, pins = [], onTripPrivacyChange, tripDistances = {} }) {
   const formatDate = (d) => {
     if (!d) return '—';
     return typeof d === 'string' ? d : d;
@@ -113,6 +113,23 @@ export default function TripList({ trips, pins = [], onTripPrivacyChange }) {
                   </div>
                 );
               })()}
+              {tripDistances[Number(t.id)] != null && (
+                <div style={{
+                  marginTop: '6px',
+                  fontSize: '12px',
+                  color: '#1D9E75',
+                  fontWeight: 600,
+                }}>
+                  {tripDistances[Number(t.id)].distanceKm.toFixed(1)} km
+                  &nbsp;/&nbsp;
+                  {tripDistances[Number(t.id)].distanceMi.toFixed(1)} mi
+                  {tripDistances[Number(t.id)].skippedPinIds?.length > 0 && (
+                    <span style={{ color: '#b00020', fontWeight: 400, marginLeft: '4px' }}>
+                      ({tripDistances[Number(t.id)].skippedPinIds.length} pin(s) missing coords)
+                    </span>
+                  )}
+                </div>
+              )}
             </li>
           ))}
         </ul>
