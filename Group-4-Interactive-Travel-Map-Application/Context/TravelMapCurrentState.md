@@ -386,14 +386,15 @@ The import is already present. This TODO item has been resolved and should be re
 | `DistanceResultTest.java` | Backend unit | 14 | FR8 — DTO construction, unit selection, skipped pins, defensive copy |
 | `MapAPIClientTest.java` | Backend unit (Mockito) | 19 | FR8 — all 3 distance modes, null coords, sort order, ownerId validation |
 | `MapControllerTest.java` | Backend integration | 12 | FR8 — all 3 endpoints, 200/400/404 paths, unit param, skippedPinIds |
-| `App.test.js` | Frontend | 5 | FR6 (1), FR3 delete flow (4) |
+| `App.test.js` | Frontend | 24 | FR6, FR3, FR2, FR11, FR10, FR8 |
 | `PinForm.test.js` | Frontend | 8 | FR1 — form inputs, save, cancel |
-| `MapView.test.js` | Frontend | 6 | FR6 markers (3), FR3 delete button (3) |
+| `MapView.test.js` | Frontend | 14 | FR6 markers, FR3 delete button, FR8 Measure button (8 new) |
+| `DistancePanel.test.jsx` | Frontend | 17 | FR8 — panel visibility, result display, cancel button (new) |
 | **Backend Total** | | **107** | Confirmed: `mvn test` BUILD SUCCESS |
-| **Frontend Total** | | **53** | Confirmed: `npm test` passing |
-| **Grand Total** | | **160** | |
+| **Frontend Total** | | **88** | Confirmed: `npm test` passing |
+| **Grand Total** | | **195** | |
 
-> **⚠️ Floor:** 107 backend / 53 frontend / 160 total — this count must never decrease. Run both `mvn test` and `npm test` before any merge.
+> **⚠️ Floor:** 107 backend / 88 frontend / 195 total — this count must never decrease. Run both `mvn test` and `npm test` before any merge.
 
 ---
 
@@ -408,7 +409,7 @@ The import is already present. This TODO item has been resolved and should be re
 | FR5 | Organize Trip | **Not Started** | `TripController` (stub), `TripService` (MISSING), `TripRepository` (MISSING), `Trip` (stub POJO) | (not started) | none |
 | FR6 | Visualize Map | **Complete** | (map tiles served by OpenStreetMap externally) | `MapView.jsx`, `mapService.js`, `App.js` | `App.test.js` (1) |
 | FR7 | Upload Media | **Not Started** | `MediaController` (stub), `Media` (stub POJO) | (not started) | none |
-| FR8 | Calculate Distances | **Backend Complete** | `DistanceCalculator.java` (IMPL), `DistanceResult.java` (IMPL), `MapAPIClient.java` (IMPL — all 3 modes), `MapController.java` (IMPL — `@GetMapping`, `/trip/{tripId}`, `/total`) | Frontend pending (`feature/map-distance-ui`) | `DistanceCalculatorTest.java` (22), `DistanceResultTest.java` (14), `MapAPIClientTest.java` (19), `MapControllerTest.java` (12) |
+| FR8 | Calculate Distances | **Fully Complete** | `DistanceCalculator.java` (IMPL), `DistanceResult.java` (IMPL), `MapAPIClient.java` (IMPL — all 3 modes), `MapController.java` (IMPL — 3 endpoints, 12 tests) | `mapDistanceService.js` (fetch wrapper), `DistancePanel.jsx` (result panel, 17 tests), `MapView.jsx` (Measure button, 8 new tests), `TripList.jsx` (trip distance in sidebar), `App.js` (measure flow + tripDistances useEffect, 10 new tests) | `DistanceCalculatorTest.java` (22), `DistanceResultTest.java` (14), `MapAPIClientTest.java` (19), `MapControllerTest.java` (12), `DistancePanel.test.jsx` (17), `MapView.test.js` (+8), `App.test.js` (+10) |
 | FR9 | Filter and Search | **Not Started** | `SearchController.handleFilterSearch()` (stub), `PinRepository.findByLocationNameContainingIgnoreCase()` (IMPLEMENTED) | (not started) | none |
 | FR10 | View Timeline | **Not Started** | `TripController.handleViewTimeline()` (stub) | (not started) | none |
 | FR11 | Set Pin Privacy | **In Progress** | `PinController.setPinPrivacy()`, `PinService.setPinPrivacy()`, `Privacy` enum | (UI for privacy not yet wired in React) | `PinServiceTest.java` (2), `PinControllerTest.java` (2) |
@@ -418,6 +419,8 @@ The import is already present. This TODO item has been resolved and should be re
 | FR15 | Persist User Data | **In Progress** | `PinRepository` (H2 persists across refreshes, resets on restart; PostgreSQL not yet active) | `App.js` useEffect → `getPins()` reloads pins on mount | `PinServiceTest.java` (indirectly) |
 
 > **FR2/FR3/FR11 note:** Backend endpoints are fully implemented and tested, but the React frontend UI does not yet have edit/delete/privacy buttons wired up. The endpoints work via direct HTTP calls; the React interface needs UI elements added.
+
+> **FR8 user-facing behavior:** Pin-to-pin: user clicks Measure on pin A (DistancePanel appears in waiting state), then Measure on pin B — panel updates to show "Pin A to Pin B" with km and mi equally styled side-by-side. Clicking the same pin twice or pressing Cancel clears all measuring state. Trip total: sidebar automatically shows km / mi under each trip's pin list, re-fetching whenever trips or pins change; pins with null coordinates are skipped and the count is reported. Accumulated total across all trips: endpoint implemented but ownerId verification is pending Wilson's auth merge.
 
 > **FR4/FR15 note:** Pins are returned for ALL users currently (no owner filtering). Full FR4 compliance requires Wilson's auth merge to filter by `ownerId`.
 
@@ -575,7 +578,7 @@ The import is already present. This TODO item has been resolved and should be re
 | NFR2 | Any user input response | ≤ 2.5 seconds |
 
 ### Test Count Floor
-- **Backend: 107** | **Frontend: 53** | **Total: 160**
+- **Backend: 107** | **Frontend: 88** | **Total: 195**
 - **This number must never decrease.** Every increment must run both `mvn test` and `npm test` before being declared complete.
 - Every new REST endpoint requires a corresponding JUnit test in `PinControllerTest.java` (or a new test file).
 - Every new public service method requires a corresponding unit test in the relevant test file.
@@ -644,6 +647,7 @@ The import is already present. This TODO item has been resolved and should be re
 
 | Date | Author | Change |
 |---|---|---|
+| 2026-04-26 | Charlie | FR8 frontend complete: `mapDistanceService.js`, `DistancePanel.jsx` (17 tests), `MapView.jsx` Measure button (8 new tests), `TripList.jsx` trip distance display, `App.js` wiring (10 new tests). Frontend floor: 88. Total floor: 195. All commits on `feature/map-controller` pushed, PR to dev pending. `feature/map-distance-ui` branch not needed — frontend implemented on this branch directly. Next: FR7 and FR6 after merge. |
 | 2026-04-08 | Master Context Generator | Initial document created from live code audit. Verified 34 tests (not 36 as CLAUDE.md claims). Confirmed `PinControllerTest` import already fixed. Noted MapView uses `pin.latitude`/`pin.longitude` (not `pin.lat`/`pin.lng`). |
 | 2026-04-08 | Charlie | Renamed package.json name field from "leaflet-test" to "travel-map" |
 | 2026-04-25 | Charlie | FR8 distance layer complete (service only — controller Step 11 pending). New files: DistanceCalculator, DistanceResult, MapAPIClientTest. Updated: IMapController (3 ResponseEntity methods), MapService (4 FR8 signatures), MapAPIClient (fully implemented), PinRepository (findByTripId + findByOwnerId). Test floor: 95 backend / 53 frontend / 148 total. |
