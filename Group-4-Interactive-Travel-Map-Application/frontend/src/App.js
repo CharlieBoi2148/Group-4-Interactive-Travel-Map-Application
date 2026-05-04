@@ -114,6 +114,10 @@ const [tripDistances, setTripDistances] = useState({});
   const handleCancel = () => {
     setForm(null);
   };
+
+  const handleLogout = () => {
+  setIsLoggedIn(false);
+};
   
 if (!isLoggedIn) {
   return <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />;
@@ -266,7 +270,28 @@ if (!isLoggedIn) {
   };
   
   return (
+      
     <div style={{ position: 'relative', height: '100vh', display: 'flex' }}>
+
+          <button
+      onClick={handleLogout}
+      style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        zIndex: 3000,
+        padding: '8px 12px',
+        background: '#e53e3e',
+        color: 'white',
+        border: 'none',
+        borderRadius: '5px',
+        cursor: 'pointer'
+      }}
+    >
+      Logout
+    </button>
+
+
       <div
         style={{
           flex: 1,
