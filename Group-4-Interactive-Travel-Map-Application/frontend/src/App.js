@@ -11,6 +11,7 @@ import 'leaflet/dist/leaflet.css';
 import './services/mapService';
 import MapView from './components/MapView';
 import PinForm from './components/PinForm';
+import LoginForm from './components/LoginForm';
 import { createPin, getPins } from './services/pinService';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
   // form → pure UI state, stays in React
   const [pins, setPins] = useState([]);
   const [form, setForm] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // FR4, FR15 — load all pins from backend when the app first mounts.
   // This is what makes pins persist across page refreshes — on every load
@@ -55,6 +57,10 @@ function App() {
   const handleCancel = () => {
     setForm(null);
   };
+  
+if (!isLoggedIn) {
+  return <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />;
+}
 
   return (
     <div style={{ position: 'relative', height: '100vh' }}>
