@@ -15,16 +15,15 @@ feature/trips-and-search
 - [x] Sort pins chronologically by visit date within trip
 - [x] Build Timeline.jsx — chronological pin view (FR10)
 - [x] Implement trip privacy — PRIVATE / FRIENDS_ONLY / PUBLIC on Trip
+- [x] Implement SearchController — GET /api/search (FR9)
+- [x] Build FilterSearch.jsx (FR9)
+- [x] Wire searchService.js to GET /api/search (FR9)
+- [x] Write JUnit tests — TripServiceTest and SearchControllerTest (FR5, FR9, FR10)
 
 ## Test Count
 Starting floor: 34 — must never decrease
 
 ## Pending (my TODOs)
-
-- [] Implement SearchController — GET /api/search (FR9)
-- [] Build FilterSearch.jsx (FR9)
-- [] Wire searchService.js to GET /api/search (FR9)
-- [] Write JUnit tests — TripServiceTest and SearchControllerTest (FR5, FR9, FR10)
 
 =======
 ## Cross-Team Dependencies Waiting On
