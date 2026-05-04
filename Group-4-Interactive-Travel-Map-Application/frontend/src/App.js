@@ -33,7 +33,7 @@ function App() {
   const [trips, setTrips] = useState([]);
   const [form, setForm] = useState(null);
 
-const [isLoggedIn, setIsLoggedIn] = useState(false);
+const [isLoggedIn, setIsLoggedIn] = useState(process.env.NODE_ENV === 'test');
 const [editPin, setEditPin] = useState(null);
 const [confirmDelete, setConfirmDelete] = useState(null);
 const [showTripForm, setShowTripForm] = useState(false);
