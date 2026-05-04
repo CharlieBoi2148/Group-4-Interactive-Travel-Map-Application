@@ -37,9 +37,8 @@ import jakarta.persistence.Id;
  *   FR11 — privacyLevel controls visibility (PRIVATE / FRIENDS_ONLY / PUBLIC)
  *
  * TODO (FR5 — Organize Trip):
- *   Add a tripId field (Long) once Gage's Trip class is merged to dev.
- *   This will be the foreign key linking pins to trips.
- *   Example: @ManyToOne @JoinColumn(name = "trip_id") private Trip trip;
+ *   tripId is currently a simple foreign-key value.
+ *   Upgrade to @ManyToOne mapping once Trip/Pin relationship is finalized.
  */
 @Entity
 public class Pin {
@@ -65,6 +64,29 @@ public class Pin {
     // Sent from React as { latitude, longitude } in the POST /api/pins request body
     private Double latitude;
     private Double longitude;
+
+    // FR5 — optional trip assignment for grouping pins under a trip.
+    private Long tripId;
+
+    /**
+     * NFR4, FR11 — ID of the user who owns this pin.
+     *
+     * Used to enforce owner-only access control. Only the owner can edit,
+     * delete, or change the privacy of their own pins. Also used by
+     * PinRepository.findByOwnerId() to scope GET /api/pins so that users
+     * only see their own pins (fixes NFR4 violation where getAllPins
+     * previously returned every user's pins).
+     *
+     * Stored as String to match Gage's Trip.ownerId and to remain flexible
+     * regardless of whether Wilson's User entity uses Long IDs, UUIDs, or
+     * usernames. If User.id is Long, conversion is trivial at the auth
+     * layer via String.valueOf(user.getId()).
+     *
+     * Currently nullable — populated by AuthController via Spring Security
+     * once Wilson's auth layer lands. Until then, this field stays null
+     * and getAllPins() continues to use findAll() unchanged.
+     */
+    private String ownerId;
 
     /**
      * FR11 — privacy setting for this pin.
@@ -119,6 +141,12 @@ public class Pin {
 
     public Double getLongitude() { return longitude; }
     public void setLongitude(Double longitude) { this.longitude = longitude; }
+
+    public Long getTripId() { return tripId; }
+    public void setTripId(Long tripId) { this.tripId = tripId; }
+
+    public String getOwnerId() { return ownerId; }
+    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 
     public Privacy getPrivacyLevel() { return privacyLevel; }
     public void setPrivacyLevel(Privacy privacyLevel) { this.privacyLevel = privacyLevel; }
