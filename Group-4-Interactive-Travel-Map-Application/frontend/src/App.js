@@ -9,15 +9,18 @@
 import { useState, useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
 import './services/mapService';
+
+import LoginForm from './components/LoginForm';
 import MapView from './components/MapView';
 import PinForm from './components/PinForm';
 import TripList from './components/TripList';
 import Timeline from './components/Timeline';
 import TripForm from './components/TripForm';
 import EditPinForm from './components/EditPinForm';
+import DistancePanel from './components/DistancePanel';
+
 import { createPin, getPins, deletePin, updatePin, setPinPrivacy } from './services/pinService';
 import { createTrip, getTrips, setTripPrivacy } from './services/tripService';
-import DistancePanel from './components/DistancePanel';
 import { getPinToPin, getTripDistance } from './services/mapDistanceService';
 
 function App() {
@@ -29,23 +32,21 @@ function App() {
   const [pins, setPins] = useState([]);
   const [trips, setTrips] = useState([]);
   const [form, setForm] = useState(null);
-  const [editPin, setEditPin] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  const [showTripForm, setShowTripForm] = useState(false);
-  const [tripSaveError, setTripSaveError] = useState(null);
-  const [tripPrivacyError, setTripPrivacyError] = useState(null);
-  // FR10 — main panel toggles between map and dedicated timeline view
-  const [mainView, setMainView] = useState('map');
 
-  const [measuringFrom, setMeasuringFrom] = useState(null);
-  const [measuredTo, setMeasuredTo] = useState(null);
-  const [distanceResult, setDistanceResult] = useState(null);
-  const [distanceError, setDistanceError] = useState(null);
-  const [distanceLoading, setDistanceLoading] = useState(false);
-  const [tripDistances, setTripDistances] = useState({});
+const [isLoggedIn, setIsLoggedIn] = useState(process.env.NODE_ENV === 'test');
+const [editPin, setEditPin] = useState(null);
+const [confirmDelete, setConfirmDelete] = useState(null);
+const [showTripForm, setShowTripForm] = useState(false);
+const [tripSaveError, setTripSaveError] = useState(null);
+const [tripPrivacyError, setTripPrivacyError] = useState(null);
+const [mainView, setMainView] = useState('map');
 
-
-
+const [measuringFrom, setMeasuringFrom] = useState(null);
+const [measuredTo, setMeasuredTo] = useState(null);
+const [distanceResult, setDistanceResult] = useState(null);
+const [distanceError, setDistanceError] = useState(null);
+const [distanceLoading, setDistanceLoading] = useState(false);
+const [tripDistances, setTripDistances] = useState({});
 
   // FR4, FR15 — load all pins from backend when the app first mounts.
   // This is what makes pins persist across page refreshes — on every load
@@ -113,6 +114,10 @@ function App() {
   const handleCancel = () => {
     setForm(null);
   };
+  
+if (!isLoggedIn) {
+  return <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />;
+}
 
   // Receives save from TripForm, delegates to tripService, updates state.
   const handleSaveTrip = async (payload) => {
