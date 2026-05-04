@@ -15,8 +15,10 @@ import TripList from './components/TripList';
 import Timeline from './components/Timeline';
 import TripForm from './components/TripForm';
 import EditPinForm from './components/EditPinForm';
+import FilterSearch from './components/FilterSearch';
 import { createPin, getPins, deletePin, updatePin, setPinPrivacy } from './services/pinService';
 import { createTrip, getTrips, setTripPrivacy } from './services/tripService';
+import { searchPins } from './services/searchService';
 
 function App() {
   // pins → fetched from Java backend via GET /api/pins on mount (FR4, FR15)
@@ -32,6 +34,9 @@ function App() {
   const [showTripForm, setShowTripForm] = useState(false);
   const [tripSaveError, setTripSaveError] = useState(null);
   const [tripPrivacyError, setTripPrivacyError] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
+  const [searchResultCount, setSearchResultCount] = useState(null);
   // FR10 — main panel toggles between map and dedicated timeline view
   const [mainView, setMainView] = useState('map');
 
@@ -65,6 +70,33 @@ function App() {
         console.error('Could not load trips from backend:', err);
       });
   }, []);
+
+  const handleSearchPins = async ({ keyword }) => {
+    setSearchError(null);
+    setIsSearching(true);
+    try {
+      const results = await searchPins({ keyword });
+      setPins(results);
+      setSearchResultCount(results.length);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Search failed';
+      setSearchError(message);
+      console.error('Search failed:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchError(null);
+    setSearchResultCount(null);
+    // Reset to canonical pin list from backend
+    getPins()
+      .then((data) => setPins(data))
+      .catch((err) => {
+        console.error('Could not reload pins after clearing search:', err);
+      });
+  };
 
   // Receives click from MapView, opens the create form.
   // Closes any open edit form first — prevents both forms rendering simultaneously.
@@ -377,6 +409,13 @@ function App() {
           boxSizing: 'border-box',
         }}
       >
+        <FilterSearch
+          onSearch={handleSearchPins}
+          onClear={handleClearSearch}
+          isLoading={isSearching}
+          error={searchError}
+          resultCount={searchResultCount}
+        />
         <TripList trips={trips} pins={pins} onTripPrivacyChange={handleTripPrivacyChange} />
         {tripPrivacyError ? (
           <p
