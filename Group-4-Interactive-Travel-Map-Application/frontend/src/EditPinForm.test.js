@@ -194,3 +194,95 @@ test('FR11 — changing dropdown does not call onSave', () => {
   // Assert
   expect(onSave).not.toHaveBeenCalled();
 });
+
+// ── FR7: Media Display, Replace, and Remove ───────────────────────────────────
+
+// FR7 — existing media renders when pin has mediaUrl
+test('FR7 — existing media renders when pin has mediaUrl', () => {
+  // Arrange
+  const pinWithMedia = { ...mockPin, mediaUrl: '/api/media/abc.jpg' };
+  render(<EditPinForm pin={pinWithMedia} onSave={jest.fn()} onCancel={jest.fn()} onPrivacyChange={jest.fn()} onRemoveMedia={jest.fn()} />);
+
+  // Assert — image should be in the document with the correct src
+  const img = document.querySelector('img');
+  expect(img).toBeInTheDocument();
+  expect(img.getAttribute('src')).toBe('/api/media/abc.jpg');
+});
+
+// FR7 — no media display when pin has no mediaUrl
+test('FR7 — no media display renders when pin has no mediaUrl', () => {
+  // Arrange — mockPin has no mediaUrl by default
+  render(<EditPinForm pin={mockPin} onSave={jest.fn()} onCancel={jest.fn()} onPrivacyChange={jest.fn()} onRemoveMedia={jest.fn()} />);
+
+  // Assert — no img tag should render
+  expect(document.querySelector('img')).not.toBeInTheDocument();
+  // And no Remove media button either
+  expect(screen.queryByText('Remove media')).not.toBeInTheDocument();
+});
+
+// FR7 — Remove media button renders when both mediaUrl and onRemoveMedia are present
+test('FR7 — Remove media button calls onRemoveMedia when clicked', () => {
+  // Arrange
+  const onRemoveMedia = jest.fn();
+  const pinWithMedia = { ...mockPin, mediaUrl: '/api/media/abc.jpg' };
+  render(<EditPinForm pin={pinWithMedia} onSave={jest.fn()} onCancel={jest.fn()} onPrivacyChange={jest.fn()} onRemoveMedia={onRemoveMedia} />);
+
+  // Act
+  fireEvent.click(screen.getByText('Remove media'));
+
+  // Assert
+  expect(onRemoveMedia).toHaveBeenCalledTimes(1);
+});
+
+// FR7 — Remove media button does NOT render when onRemoveMedia prop is missing
+test('FR7 — Remove media button does not render when onRemoveMedia is omitted', () => {
+  // Arrange — pin has media but no onRemoveMedia handler passed
+  const pinWithMedia = { ...mockPin, mediaUrl: '/api/media/abc.jpg' };
+  render(<EditPinForm pin={pinWithMedia} onSave={jest.fn()} onCancel={jest.fn()} onPrivacyChange={jest.fn()} />);
+
+  // Assert — image still shows, but no remove button
+  expect(document.querySelector('img')).toBeInTheDocument();
+  expect(screen.queryByText('Remove media')).not.toBeInTheDocument();
+});
+
+// FR7 — picking a new file hides existing media and shows local preview
+test('FR7 — picking a new file replaces existing media display', () => {
+  // Arrange
+  const file = new File(['fake content'], 'newphoto.jpg', { type: 'image/jpeg' });
+  const pinWithMedia = { ...mockPin, mediaUrl: '/api/media/old.jpg' };
+  render(<EditPinForm pin={pinWithMedia} onSave={jest.fn()} onCancel={jest.fn()} onPrivacyChange={jest.fn()} onRemoveMedia={jest.fn()} />);
+
+  // Verify existing media is shown initially
+  expect(document.querySelector('img').getAttribute('src')).toBe('/api/media/old.jpg');
+
+  // Act — pick a new file
+  const fileInput = document.querySelector('input[type="file"]');
+  fireEvent.change(fileInput, { target: { files: [file] } });
+
+  // Assert — Remove media button (for server-side delete) is gone, Remove file button (local) is present
+  expect(screen.queryByText('Remove media')).not.toBeInTheDocument();
+  expect(screen.getByText('Remove file')).toBeInTheDocument();
+});
+
+// FR7 — save with mediaFile picked passes it through to onSave
+test('FR7 — save with picked file includes mediaFile in onSave payload', () => {
+  // Arrange
+  const onSave = jest.fn();
+  const file = new File(['fake content'], 'photo.jpg', { type: 'image/jpeg' });
+  render(<EditPinForm pin={mockPin} onSave={onSave} onCancel={jest.fn()} onPrivacyChange={jest.fn()} onRemoveMedia={jest.fn()} />);
+
+  // Act — pick a file, then save
+  const fileInput = document.querySelector('input[type="file"]');
+  fireEvent.change(fileInput, { target: { files: [file] } });
+  fireEvent.click(screen.getByText('Save Changes'));
+
+  // Assert
+  expect(onSave).toHaveBeenCalledWith({
+    locationName: 'Eiffel Tower',
+    country: 'France',
+    region: 'Île-de-France',
+    visitDate: '2024-06-01',
+    notes: 'Amazing view',
+    mediaFile: file,
+  });
+});
