@@ -159,6 +159,72 @@ test('FR1 — onSave is not called if locationName is whitespace only', () => {
   expect(mockSave).not.toHaveBeenCalled();
 });
 
+// ── FR7: Media File Input ─────────────────────────────────────────────────────
+
+test('FR7 — renders file input that accepts media types', () => {
+  render(<PinForm latlng={mockLatlng} onSave={jest.fn()} onCancel={jest.fn()} />);
+  const fileInput = document.querySelector('input[type="file"]');
+  expect(fileInput).toBeInTheDocument();
+  expect(fileInput).toHaveAttribute('accept', 'image/*,video/*,audio/*');
+});
+
+test('FR7 — calls onSave with mediaFile when a file is selected', () => {
+  const mockSave = jest.fn();
+  const file = new File(['fake content'], 'photo.jpg', { type: 'image/jpeg' });
+
+  render(<PinForm latlng={mockLatlng} onSave={mockSave} onCancel={jest.fn()} />);
+
+  fireEvent.change(screen.getByPlaceholderText('Location name *'), {
+    target: { value: 'Eiffel Tower' }
+  });
+
+  const fileInput = document.querySelector('input[type="file"]');
+  fireEvent.change(fileInput, { target: { files: [file] } });
+
+  fireEvent.click(screen.getByText('Save Pin'));
+
+  expect(mockSave).toHaveBeenCalledWith({
+    locationName: 'Eiffel Tower',
+    country: '',
+    region: '',
+    visitDate: '',
+    tripId: null,
+    notes: '',
+    mediaFile: file,
+  });
+});
+
+test('FR7 — Remove file button clears the picked file from save payload', () => {
+  const mockSave = jest.fn();
+  const file = new File(['fake content'], 'photo.jpg', { type: 'image/jpeg' });
+
+  render(<PinForm latlng={mockLatlng} onSave={mockSave} onCancel={jest.fn()} />);
+
+  fireEvent.change(screen.getByPlaceholderText('Location name *'), {
+    target: { value: 'Eiffel Tower' }
+  });
+
+  // User picks a file
+  const fileInput = document.querySelector('input[type="file"]');
+  fireEvent.change(fileInput, { target: { files: [file] } });
+
+  // User changes their mind and clicks Remove file
+  fireEvent.click(screen.getByText('Remove file'));
+
+  // Save now — payload should have mediaFile: null
+  fireEvent.click(screen.getByText('Save Pin'));
+
+  expect(mockSave).toHaveBeenCalledWith({
+    locationName: 'Eiffel Tower',
+    country: '',
+    region: '',
+    visitDate: '',
+    tripId: null,
+    notes: '',
+    mediaFile: null,
+  });
+});
+
 // ── FR1: Cancel ───────────────────────────────────────────────────────────────
 
 test('FR1 — calls onCancel when Cancel is clicked', () => {
