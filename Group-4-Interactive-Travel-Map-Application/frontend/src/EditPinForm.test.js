@@ -63,7 +63,8 @@ test('FR2 — valid save delegates correct fields to onSave', () => {
     country: 'France',
     region: 'Île-de-France',
     visitDate: '2024-06-01',
-    notes: 'Amazing view'
+    notes: 'Amazing view',
+    mediaFile: null,
   });
 });
 
@@ -86,7 +87,8 @@ test('FR2 — valid save with all fields edited calls onSave with new values', (
     country: 'France',
     region: 'Paris',
     visitDate: '2024-06-01',
-    notes: 'Great art'
+    notes: 'Great art',
+    mediaFile: null,
   });
 });
 
