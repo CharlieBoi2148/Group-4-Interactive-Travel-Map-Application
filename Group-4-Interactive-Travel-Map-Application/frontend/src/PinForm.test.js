@@ -69,7 +69,8 @@ test('FR1 — calls onSave with locationName when Save Pin is clicked', () => {
     region: '',
     visitDate: '',
     tripId: null,
-    notes: ''
+    notes: '',
+    mediaFile: null,
   });
 });
 
@@ -94,7 +95,8 @@ test('FR1 — calls onSave with both locationName and visitDate', () => {
     region: '',
     visitDate: '2024-06-01',
     tripId: null,
-    notes: ''
+    notes: '',
+    mediaFile: null,
   });
 });
 
@@ -127,7 +129,8 @@ test('FR1 — calls onSave with all five fields when all are filled in', () => {
     region: 'Île-de-France',
     visitDate: '2024-06-01',
     tripId: null,
-    notes: 'Amazing view from the top.'
+    notes: 'Amazing view from the top.',
+    mediaFile: null,
   });
 });
 
