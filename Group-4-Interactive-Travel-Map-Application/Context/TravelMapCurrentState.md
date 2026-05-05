@@ -99,8 +99,14 @@ User → View (React) → App.js → pinService.js → fetch() →
 | **SRP** (Single Responsibility) | `PinController` handles HTTP only. `PinService` handles business logic only. `PinRepository` handles data access only. Each has exactly one reason to change. |
 | **OCP** (Open/Closed) | All controllers implement interfaces (`IPinController`, `ITripController`, etc.). New implementations can be added without modifying existing code. |
 | **LSP** (Liskov Substitution) | `PinController implements IPinController` — `AppController` depends on `IPinController` and can be substituted with any conforming implementation without breaking the system. |
-| **ISP** (Interface Segregation) | Interfaces are small and role-specific: `IPinController` (5 pin methods), `ITripController` (3 trip methods), `IMediaController` (1 media method), `ISearchController` (2 search methods), `ISharingController` (1 sharing method). No class is forced to implement methods it does not use. |
+| **ISP** (Interface Segregation) | Interfaces are small and role-specific: `IPinController` (5 pin methods), `ITripController` (3 trip methods), `IMediaController` (3 media methods — FR7), `ISearchController` (2 search methods), `ISharingController` (1 sharing method). No class is forced to implement methods it does not use. |
 | **DIP** (Dependency Inversion) | `AppController` depends on `IPinController` (interface), not `PinController` (concrete). `PinController` depends on `PinService` via constructor injection. `PinService` depends on `PinRepository` via constructor injection. High-level modules depend on abstractions. |
+
+### New Package: `travelmap.media` (added FR7, May 2026)
+
+`MediaService.java` lives in `travelmap.media`, mirroring the `travelmap.map` pattern used for `MapAPIClient`. This is a deliberate short-term location — both `MediaService` and `PinService` should consolidate into `travelmap.service` in the final sprint cleanup pass. `MediaService` is annotated `@Service` (not `@Component`), explicitly avoiding the cleanup item already flagged for `MapAPIClient`.
+
+Media files are stored at `backend/uploads/{uuid}.{ext}` and are gitignored. UUID-based filenames prevent path traversal and name collisions. The frontend accesses them via `GET /api/media/{filename}`. The frontend service (`mediaService.js`) uses relative URLs and the CRA dev proxy — it does NOT use the older hardcoded-localhost pattern from `pinService.js`.
 
 ### Full Package Structure (verified against live code)
 
@@ -123,28 +129,30 @@ Group-4-Interactive-Travel-Map-Application/
 │       │   │   │   ├── AppController.java              @RestController orchestrator (STUBBED)
 │       │   │   │   ├── PinController.java              @RestController /api/pins (IMPLEMENTED)
 │       │   │   │   ├── TripController.java             @RestController /api/trips (STUBBED)
-│       │   │   │   ├── MapController.java              @RestController /api/map (STUBBED)
-│       │   │   │   ├── MediaController.java            @RestController /api/media (STUBBED)
+│       │   │   │   ├── MapController.java              @RestController /api/map/distance (IMPLEMENTED — FR8)
+│       │   │   │   ├── MediaController.java            @RestController /api/media (IMPLEMENTED — FR7)
 │       │   │   │   ├── SearchController.java           @RestController /api/search (STUBBED)
 │       │   │   │   └── SharingController.java          @RestController /api/share (STUBBED)
 │       │   │   ├── interfaces/
 │       │   │   │   ├── IPinController.java             (IMPLEMENTED)
 │       │   │   │   ├── ITripController.java            (STUBBED)
-│       │   │   │   ├── IMapController.java             (STUBBED)
-│       │   │   │   ├── IMediaController.java           (STUBBED)
+│       │   │   │   ├── IMapController.java             (IMPLEMENTED — FR8, 3 ResponseEntity<DistanceResult> methods)
+│       │   │   │   ├── IMediaController.java           (IMPLEMENTED — FR7, 3 ResponseEntity methods: upload/serve/delete)
 │       │   │   │   ├── ISearchController.java          (STUBBED)
 │       │   │   │   ├── ISharingController.java         (STUBBED)
 │       │   │   │   ├── IAuthService.java               (STUBBED)
 │       │   │   │   ├── IProfileService.java            (STUBBED)
 │       │   │   │   ├── IRegistrationService.java       (STUBBED)
-│       │   │   │   ├── MapService.java                 interface (STUBBED)
+│       │   │   │   ├── MapService.java                 interface (IMPLEMENTED — FR8, 4 methods)
 │       │   │   │   └── UserRepository.java             interface (STUBBED)
 │       │   │   ├── map/
 │       │   │   │   ├── DistanceCalculator.java         Pure-math Haversine utility, no Spring (IMPLEMENTED)
 │       │   │   │   ├── DistanceResult.java             DTO: distanceKm, distanceMi, unit, skippedPinIds (IMPLEMENTED)
 │       │   │   │   └── MapAPIClient.java               @Component implements MapService (IMPLEMENTED)
+│       │   │   ├── media/
+│       │   │   │   └── MediaService.java               @Service — FR7 upload/read/delete, UUID filenames, NFR4 path-traversal defense (IMPLEMENTED)
 │       │   │   ├── model/
-│       │   │   │   ├── Pin.java                        @Entity (IMPLEMENTED)
+│       │   │   │   ├── Pin.java                        @Entity (IMPLEMENTED — mediaUrl field stores /api/media/{filename})
 │       │   │   │   ├── Privacy.java                    enum PRIVATE/FRIENDS_ONLY/PUBLIC (IMPLEMENTED)
 │       │   │   │   ├── User.java                       POJO, no JPA annotations (STUBBED)
 │       │   │   │   ├── Trip.java                       POJO, no JPA annotations (STUBBED)
@@ -156,31 +164,43 @@ Group-4-Interactive-Travel-Map-Application/
 │       │   │   │   ├── PinService.java                 @Service — WRONG PACKAGE (IMPLEMENTED)
 │       │   │   │   └── UserRepositoryImpl.java         @Repository (STUBBED)
 │       │   │   └── service/                            DIRECTORY DOES NOT EXIST YET
-│       │   │       └── (PinService.java should move here before final submission)
+│       │   │       └── (PinService.java and MediaService.java should move here before final submission)
 │       │   └── resources/
-│       │       └── application.properties              H2 config; PostgreSQL commented out
+│       │       └── application.properties              H2 config; PostgreSQL commented out; multipart upload config + travelmap.media.upload-dir property (FR7)
 │       └── test/java/travelmap/
 │           ├── PinServiceTest.java                     15 unit tests (IMPLEMENTED)
 │           ├── PinControllerTest.java                  10 integration tests (IMPLEMENTED)
 │           ├── DistanceCalculatorTest.java             22 unit tests, input partitioning (IMPLEMENTED)
 │           ├── DistanceResultTest.java                 14 unit tests (IMPLEMENTED)
-│           └── MapAPIClientTest.java                   19 unit tests, Mockito (IMPLEMENTED)
+│           ├── MapAPIClientTest.java                   19 unit tests, Mockito (IMPLEMENTED)
+│           ├── MapControllerTest.java                  12 integration tests, @WebMvcTest (IMPLEMENTED — FR8)
+│           ├── MediaServiceTest.java                   23 unit tests — FR7 upload/read/delete + NFR4 path traversal (IMPLEMENTED)
+│           └── MediaControllerTest.java                14 integration tests — FR7 HTTP layer + NFR3/NFR4 status mapping (IMPLEMENTED)
 │
+├── uploads/                                            Runtime media storage — gitignored; UUID filenames prevent path traversal
 └── frontend/
     ├── package.json                                    React 19.2.4, Leaflet 1.9.4
     └── src/
-        ├── App.js                                      Controller layer (IMPLEMENTED)
-        ├── App.test.js                                 1 test — FR6 (IMPLEMENTED)
-        ├── PinForm.test.js                             8 tests — FR1 (IMPLEMENTED)
+        ├── App.js                                      Controller layer (IMPLEMENTED — FR7: chained upload + handleRemoveMedia)
+        ├── App.test.js                                 24 tests — FR6, FR3, FR2, FR11, FR10, FR8
+        ├── PinForm.test.js                             11 tests — FR1 (8) + FR7 file input (3)
+        ├── EditPinForm.test.js                         18 tests — FR2 (8), FR11 privacy (5), FR7 media (6) (IMPLEMENTED)
+        ├── mediaService.test.js                        9 tests — FR7 fetch wrappers (IMPLEMENTED)
+        ├── MediaPreview.test.jsx                       10 tests — FR7 element rendering + blob URL cleanup (IMPLEMENTED)
         ├── index.js                                    React entry point
-        ├── setupTests.js                               Jest config
+        ├── setupTests.js                               Jest config + JSDOM mocks for URL.createObjectURL / URL.revokeObjectURL (FR7)
         ├── reportWebVitals.js                          Performance monitoring
         ├── components/
-        │   ├── MapView.jsx                             View: map + markers (IMPLEMENTED)
-        │   └── PinForm.jsx                             View: pin creation form (IMPLEMENTED)
+        │   ├── MapView.jsx                             View: map + markers + media thumbnail in popup (IMPLEMENTED — FR7 + FR8)
+        │   ├── PinForm.jsx                             View: pin creation form + file input + local preview (IMPLEMENTED — FR7)
+        │   ├── EditPinForm.jsx                         View: pre-fills from pin prop, media display/replace/remove flow (IMPLEMENTED — FR7)
+        │   ├── DistancePanel.jsx                       View: FR8 distance overlay panel (IMPLEMENTED)
+        │   └── MediaPreview.jsx                        View: inline media rendering — img/video/audio/download by MIME+ext, blob URL cleanup (IMPLEMENTED — FR7)
         └── services/
             ├── pinService.js                           Fetch to /api/pins (IMPLEMENTED)
-            └── mapService.js                           Leaflet icon config (IMPLEMENTED)
+            ├── mapService.js                           Leaflet icon config (IMPLEMENTED)
+            ├── mapDistanceService.js                   Fetch wrapper for FR8 distance endpoints (IMPLEMENTED)
+            └── mediaService.js                         Fetch wrappers for FR7 — uploadMedia, deleteMedia, mediaUrl helper (IMPLEMENTED)
 ```
 
 **MISSING classes (referenced but not yet created):**
@@ -280,7 +300,7 @@ Available at: `http://localhost:8080/h2-console`
 | `AppController.java` | [STUBBED] | `@RestController`, no `@RequestMapping`. Holds references to all controller/service interfaces via field injection (not constructor). No methods implemented. Not a REST entry point — structural orchestrator only. |
 | `TripController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/trips")`. Implements `ITripController`. All 3 methods present but return void with empty bodies. |
 | `MapController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/map")`, `@CrossOrigin`. Implements `IMapController`. 3 endpoints (`/distance/pins`, `/distance/trip`, `/distance/total`) all return HTTP 501. MapService injection pending (Step 11). |
-| `MediaController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/media")`. Implements `IMediaController`. 1 method, empty body. |
+| `MediaController.java` | [IMPLEMENTED] | `@RestController`, `@RequestMapping("/api/media")`, `@CrossOrigin`. Implements `IMediaController`. 3 endpoints: `uploadMedia` (POST /{pinId}), `serveMedia` (GET /{filename}), `deleteMedia` (DELETE /{pinId}). IAE → 400 or 404; ISE → 500. Constructor injection of `MediaService` and `PinService`. |
 | `SearchController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/search")`. Implements `ISearchController`. 2 methods, empty bodies. |
 | `SharingController.java` | [STUBBED] | `@RestController`, `@RequestMapping("/api/share")`. Implements `ISharingController`. 1 method, empty body. |
 
@@ -314,7 +334,7 @@ Available at: `http://localhost:8080/h2-console`
 | `IPinController.java` | [IMPLEMENTED] | Full Javadoc, all 5 method signatures defined with `ResponseEntity<T>` return types |
 | `ITripController.java` | [STUBBED] | 3 methods, void returns |
 | `IMapController.java` | [IMPLEMENTED] | 3 methods with `ResponseEntity<DistanceResult>` return types: `getDistanceBetween`, `getTripDistance`, `getTotalDistance`. Full Javadoc. |
-| `IMediaController.java` | [STUBBED] | 1 method, void return |
+| `IMediaController.java` | [IMPLEMENTED] | 3 methods: `uploadMedia` (POST /{pinId}), `serveMedia` (GET /{filename}), `deleteMedia` (DELETE /{pinId}). All return `ResponseEntity<?>`. Full Javadoc. |
 | `ISearchController.java` | [STUBBED] | 2 methods, void returns |
 | `ISharingController.java` | [STUBBED] | 1 method, void return |
 | `IAuthService.java` | [STUBBED] | 2 methods: `isLoggedIn()`, `getCurrentUser()` |
@@ -333,8 +353,12 @@ Available at: `http://localhost:8080/h2-console`
 | `/api/pins/{id}` | DELETE | `deletePin()` | [WORKING] | Returns HTTP 204 |
 | `/api/pins/{id}/privacy` | PATCH | `setPinPrivacy()` | [WORKING] | Returns HTTP 200 |
 | `/api/trips` | all | `TripController` | [STUBBED] | Methods mapped but not implemented |
-| `/api/map` | all | `MapController` | [STUBBED] | Methods mapped but not implemented |
-| `/api/media` | all | `MediaController` | [STUBBED] | Methods mapped but not implemented |
+| `/api/map/distance` | GET | `MapController.getDistanceBetween()` | [WORKING] | Returns 200 DistanceResult; 400 on IAE |
+| `/api/map/distance/trip/{tripId}` | GET | `MapController.getTripDistance()` | [WORKING] | Returns 200 DistanceResult; 404 on trip not found |
+| `/api/map/distance/total` | GET | `MapController.getTotalDistance()` | [WORKING] | Returns 200 DistanceResult; 400 on missing ownerId |
+| `/api/media/{pinId}` | POST | `MediaController.uploadMedia()` | [WORKING] | Multipart upload; returns 201 + updated Pin; 400/404 on IAE |
+| `/api/media/{filename}` | GET | `MediaController.serveMedia()` | [WORKING] | Serves raw bytes with correct Content-Type; 404 on missing file |
+| `/api/media/{pinId}` | DELETE | `MediaController.deleteMedia()` | [WORKING] | Removes file + clears Pin.mediaUrl; returns 204; 404 on IAE "not found" |
 | `/api/search` | all | `SearchController` | [STUBBED] | Methods mapped but not implemented |
 | `/api/share` | all | `SharingController` | [STUBBED] | Methods mapped but not implemented |
 | `/api/auth/**` | all | `AuthController` | [MISSING] | Not yet created (Wilson's task) |
@@ -343,13 +367,17 @@ Available at: `http://localhost:8080/h2-console`
 
 | File | Status | Notes |
 |---|---|---|
-| `App.js` | [IMPLEMENTED] | Controller layer. Holds `pins` and `form` state. `useEffect` calls `getPins()` on mount. Handles `handleMapClick`, `handleSavePin`, `handleCancel`. |
-| `MapView.jsx` | [IMPLEMENTED] | Pure View. Accepts `pins` props, renders Leaflet `MapContainer`, `TileLayer`, `Marker`/`Popup`. Inner `PinPlacer` component delegates click events upward. |
-| `PinForm.jsx` | [IMPLEMENTED] | Pure View. Controlled inputs for `locationName` and `visitDate`. Delegates Save/Cancel to App.js via props. |
-| `pinService.js` | [IMPLEMENTED] | `createPin()`: POST to `/api/pins`; local fallback if backend down. `getPins()`: GET `/api/pins`. Both normalise `latitude`/`longitude` → adds `lat`/`lng` aliases. |
+| `App.js` | [IMPLEMENTED] | Controller layer. Holds `pins`, `form`, `editPin`, `confirmDelete`, distance, and `tripDistances` state. `handleSavePin` chains `createPin → uploadMedia` with inner try/catch (pin saved even if upload fails). `handleUpdatePin` same pattern. `handleRemoveMedia` calls `deleteMedia` and clears `mediaUrl` from state. |
+| `MapView.jsx` | [IMPLEMENTED] | Pure View. Renders Leaflet markers with popup: location name, visit date, media thumbnail (`MediaPreview` with 180px cap), Edit/Delete/Measure buttons. `PinPlacer` inner component delegates map click events upward. |
+| `PinForm.jsx` | [IMPLEMENTED] | Pure View. Controlled inputs for all pin fields + file input (`accept="image/*,video/*,audio/*"`), local `MediaPreview`, Remove file button. `mediaFile` included in `onSave` payload. |
+| `EditPinForm.jsx` | [IMPLEMENTED] | Pure View. Pre-fills from `pin` prop. Shows existing server media (`<img>` + "Remove media" button when `onRemoveMedia` prop is present), file input for replace, local `MediaPreview`. `mediaFile` in `onSave` payload. |
+| `MediaPreview.jsx` | [IMPLEMENTED] | Pure View (FR7). Renders `<img>`, `<video controls>`, `<audio controls>`, or `<a>Download media</a>` based on MIME type then extension. Accepts `file` (File object — blob URL) or `src` (URL string). `useEffect` creates/revokes blob URL on mount/unmount to prevent memory leaks. Returns null when no source. |
+| `pinService.js` | [IMPLEMENTED] | `createPin()`, `getPins()`, `updatePin()`, `deletePin()`. All normalise `latitude`/`longitude` → adds `lat`/`lng` aliases. Local fallback if backend down. |
+| `mediaService.js` | [IMPLEMENTED] | FR7 fetch wrappers. `uploadMedia(pinId, file)`: POST FormData — no Content-Type header (browser sets multipart boundary). `deleteMedia(pinId)`: DELETE. `mediaUrl(pin)`: returns `pin.mediaUrl` or null. Relative URLs + CRA proxy. |
 | `mapService.js` | [IMPLEMENTED] | One-time Leaflet default icon configuration. Imported by `App.js` as a side-effect import. |
+| `mapDistanceService.js` | [IMPLEMENTED] | FR8 fetch wrappers: `getPinToPin()`, `getTripDistance()`, `getTotalDistance()`. Relative URLs + CRA proxy. |
 | `index.js` | [IMPLEMENTED] | React entry point, mounts `App` into `#root` |
-| `setupTests.js` | [IMPLEMENTED] | Jest setup, imports `@testing-library/jest-dom` |
+| `setupTests.js` | [IMPLEMENTED] | Jest setup: `@testing-library/jest-dom` + JSDOM mocks for `URL.createObjectURL` (returns `'blob:mock'`) and `URL.revokeObjectURL` — required by `MediaPreview` tests because JSDOM does not implement these APIs. |
 | `reportWebVitals.js` | [IMPLEMENTED] | CRA-generated performance monitoring stub |
 
 ### ⚠️ Live Code Discrepancy: MapView Field Names
@@ -386,15 +414,20 @@ The import is already present. This TODO item has been resolved and should be re
 | `DistanceResultTest.java` | Backend unit | 14 | FR8 — DTO construction, unit selection, skipped pins, defensive copy |
 | `MapAPIClientTest.java` | Backend unit (Mockito) | 19 | FR8 — all 3 distance modes, null coords, sort order, ownerId validation |
 | `MapControllerTest.java` | Backend integration | 12 | FR8 — all 3 endpoints, 200/400/404 paths, unit param, skippedPinIds |
+| `MediaServiceTest.java` | Backend unit | 23 | FR7 — upload/read/delete logic; NFR4 — path traversal defense, filename sanitisation |
+| `MediaControllerTest.java` | Backend integration | 14 | FR7 — HTTP layer (201/200/204); NFR3 — ISE → 500 disk failure mapping; NFR4 — IAE → 400/404 |
 | `App.test.js` | Frontend | 24 | FR6, FR3, FR2, FR11, FR10, FR8 |
-| `PinForm.test.js` | Frontend | 8 | FR1 — form inputs, save, cancel |
+| `PinForm.test.js` | Frontend | 11 | FR1 — form inputs, save, cancel (8); FR7 — file input accept, save includes file, Remove clears payload (3) |
+| `EditPinForm.test.js` | Frontend | 18 | FR2 — form pre-fill and save (8); FR11 — privacy dropdown (5); FR7 — media display, replace, remove, save payload (6) (note: 2 pre-existing tests updated to include `mediaFile: null`) |
 | `MapView.test.js` | Frontend | 14 | FR6 markers, FR3 delete button, FR8 Measure button (8 new) |
-| `DistancePanel.test.jsx` | Frontend | 17 | FR8 — panel visibility, result display, cancel button (new) |
-| **Backend Total** | | **107** | Confirmed: `mvn test` BUILD SUCCESS |
-| **Frontend Total** | | **88** | Confirmed: `npm test` passing |
-| **Grand Total** | | **195** | |
+| `DistancePanel.test.jsx` | Frontend | 17 | FR8 — panel visibility, result display, cancel button |
+| `mediaService.test.js` | Frontend | 9 | FR7 — uploadMedia (4: success, null pinId, null file, non-OK); deleteMedia (2: success, non-OK); mediaUrl helper (3) |
+| `MediaPreview.test.jsx` | Frontend | 10 | FR7 — no source → null (2); extension-based rendering img/video/audio/download (5); alt prop (1); file wins over src (1); blob URL cleanup on unmount (1) |
+| **Backend Total** | | **144** | Confirmed: `mvn test` BUILD SUCCESS |
+| **Frontend Total** | | **116** | Confirmed: `npm test` 116 passed, 0 failed |
+| **Grand Total** | | **260** | |
 
-> **⚠️ Floor:** 107 backend / 88 frontend / 195 total — this count must never decrease. Run both `mvn test` and `npm test` before any merge.
+> **⚠️ Floor:** 144 backend / 116 frontend / 260 total — this count must never decrease. Run both `mvn test` and `npm test` before any merge.
 
 ---
 
@@ -408,7 +441,7 @@ The import is already present. This TODO item has been resolved and should be re
 | FR4 | View Pins and Trips | **In Progress** | `PinController.getAllPins()`, `PinService.getAllPins()` | `App.js` (useEffect), `MapView.jsx` | `PinServiceTest.java` (2), `PinControllerTest.java` (2) |
 | FR5 | Organize Trip | **Not Started** | `TripController` (stub), `TripService` (MISSING), `TripRepository` (MISSING), `Trip` (stub POJO) | (not started) | none |
 | FR6 | Visualize Map | **Complete** | (map tiles served by OpenStreetMap externally) | `MapView.jsx`, `mapService.js`, `App.js` | `App.test.js` (1) |
-| FR7 | Upload Media | **Not Started** | `MediaController` (stub), `Media` (stub POJO) | (not started) | none |
+| FR7 | Upload Media | **Complete** (May 2026) | `MediaController` (IMPL — 3 endpoints), `MediaService` (IMPL — upload/read/delete, UUID filenames, NFR4 path-traversal), `IMediaController` (IMPL), `Pin.mediaUrl` (stores relative URL) | `mediaService.js` (fetch wrappers), `MediaPreview.jsx` (rendering), `PinForm.jsx` (file input + preview), `EditPinForm.jsx` (replace/remove flow), `App.js` (chained upload + handleRemoveMedia), `MapView.jsx` (thumbnail in popup) | `MediaServiceTest.java` (23), `MediaControllerTest.java` (14), `PinForm.test.js` (+3), `EditPinForm.test.js` (+6), `mediaService.test.js` (9), `MediaPreview.test.jsx` (10) |
 | FR8 | Calculate Distances | **Fully Complete** | `DistanceCalculator.java` (IMPL), `DistanceResult.java` (IMPL), `MapAPIClient.java` (IMPL — all 3 modes), `MapController.java` (IMPL — 3 endpoints, 12 tests) | `mapDistanceService.js` (fetch wrapper), `DistancePanel.jsx` (result panel, 17 tests), `MapView.jsx` (Measure button, 8 new tests), `TripList.jsx` (trip distance in sidebar), `App.js` (measure flow + tripDistances useEffect, 10 new tests) | `DistanceCalculatorTest.java` (22), `DistanceResultTest.java` (14), `MapAPIClientTest.java` (19), `MapControllerTest.java` (12), `DistancePanel.test.jsx` (17), `MapView.test.js` (+8), `App.test.js` (+10) |
 | FR9 | Filter and Search | **Not Started** | `SearchController.handleFilterSearch()` (stub), `PinRepository.findByLocationNameContainingIgnoreCase()` (IMPLEMENTED) | (not started) | none |
 | FR10 | View Timeline | **Not Started** | `TripController.handleViewTimeline()` (stub) | (not started) | none |
@@ -506,14 +539,15 @@ The import is already present. This TODO item has been resolved and should be re
 
 ### Charlie's TODOs
 - [ ] Move `PinService.java` from `travelmap.repository` to `travelmap.service` package before final submission
+- [ ] Move `MediaService.java` from `travelmap.media` to `travelmap.service` package in the same pass (tech debt — mirrors the existing PinService note)
 - [ ] Create `travelmap/service/` directory
 - [ ] Replace `@CrossOrigin("http://localhost:3000")` with a proper CORS configuration class before production
 - [ ] Add a `@ControllerAdvice` global exception handler to replace per-method try/catch in `PinController`
 - [ ] Add wire-up for Edit Pin UI in React (FR2 backend is complete, React UI not wired)
 - [ ] Add wire-up for Delete Pin UI in React (FR3 backend is complete, React UI not wired)
 - [ ] Add wire-up for Privacy setting UI in React (FR11 backend is complete, React UI not wired)
-- [ ] Once `MediaController` is implemented: call `MediaService.deleteMedia(pin.getMediaUrl())` in `PinService.deletePin()` before removing the DB record
-- [ ] Upgrade `Pin.mediaUrl` (single String) to `@OneToMany` with `Media` entity for multiple files per pin (FR7)
+- [ ] **Orphan file cleanup:** `PinService.deletePin()` does not call `MediaService.deleteMedia()` — deleting a pin with media leaves the file on disk. Add the call before removing the DB record (easy follow-up if time allows before May 12 demo).
+- [ ] **Multi-media per pin:** `Pin.mediaUrl` is a single `String`. FR7 SRS allows multiple files per pin. If time permits, upgrade to `@OneToMany` with `Media` entity. Not blocking for demo.
 - [ ] Remove `Coordinate.java` dead code before final submission
 
 ### Wilson's TODOs (auth merge impacts)
@@ -550,7 +584,6 @@ The import is already present. This TODO item has been resolved and should be re
 - [ ] Add `@Entity` to `Media.java`, `Trip.java`, `Statistics.java` and create corresponding JPA repositories for persistence
 - [ ] Implement `SearchController.handleFilterSearch()` (FR9) — Gage's task, depends on Trip merge
 - [ ] Implement `SearchController.handleViewStatistics()` (FR13)
-- [ ] Implement `MediaController.handleUploadMedia()` (FR7)
 - [ ] Implement `MapController.handleCalculateDistance()` (FR8) — implement `MapAPIClient.calculateDistance()`
 - [ ] Implement `SharingController.handleGenerateShareLink()` (FR12)
 - [ ] Run performance testing against NFR2 thresholds before final submission
@@ -578,7 +611,7 @@ The import is already present. This TODO item has been resolved and should be re
 | NFR2 | Any user input response | ≤ 2.5 seconds |
 
 ### Test Count Floor
-- **Backend: 107** | **Frontend: 88** | **Total: 195**
+- **Backend: 144** | **Frontend: 116** | **Total: 260**
 - **This number must never decrease.** Every increment must run both `mvn test` and `npm test` before being declared complete.
 - Every new REST endpoint requires a corresponding JUnit test in `PinControllerTest.java` (or a new test file).
 - Every new public service method requires a corresponding unit test in the relevant test file.
@@ -603,7 +636,7 @@ The import is already present. This TODO item has been resolved and should be re
 
 2. **Read `CLAUDE.md` before writing any code.** It is the authoritative description of the current implementation state. This Master Context Document supplements it — both must be read.
 
-3. **Never reduce the passing test count below 107 (backend) / 53 (frontend) / 160 (total).** Run `mvn test` AND `npm test` and confirm both pass before declaring any increment complete.
+3. **Never reduce the passing test count below 144 (backend) / 116 (frontend) / 260 (total).** Run `mvn test` AND `npm test` and confirm both pass before declaring any increment complete.
 
 4. **Never move a class to a different package without explicit instruction.** In particular, do not move `PinService.java` to `travelmap.service` unless the user explicitly requests it, even though CLAUDE.md marks it as a TODO.
 
@@ -647,6 +680,7 @@ The import is already present. This TODO item has been resolved and should be re
 
 | Date | Author | Change |
 |---|---|---|
+| 2026-05-05 | Charlie | FR7 Media Upload complete — backend + frontend. Backend: `IMediaController` (3-method contract), `MediaService` (23 tests — FR7 + NFR4 path traversal), `MediaController` (14 tests — FR7 HTTP layer + NFR3/NFR4 status mapping), `application.properties` multipart config. Frontend: `mediaService.js` (9 tests), `MediaPreview.jsx` (10 tests), `PinForm.jsx` (+3 tests), `EditPinForm.jsx` (+6 tests), `App.js` chained upload + handleRemoveMedia, `MapView.jsx` media thumbnail, `setupTests.js` JSDOM mocks. New floors: 144 backend / 116 frontend / 260 total. Branch: `feature/media-controller`. 22 commits, ready for PR. |
 | 2026-04-26 | Charlie | FR8 frontend complete: `mapDistanceService.js`, `DistancePanel.jsx` (17 tests), `MapView.jsx` Measure button (8 new tests), `TripList.jsx` trip distance display, `App.js` wiring (10 new tests). Frontend floor: 88. Total floor: 195. All commits on `feature/map-controller` pushed, PR to dev pending. `feature/map-distance-ui` branch not needed — frontend implemented on this branch directly. Next: FR7 and FR6 after merge. |
 | 2026-04-08 | Master Context Generator | Initial document created from live code audit. Verified 34 tests (not 36 as CLAUDE.md claims). Confirmed `PinControllerTest` import already fixed. Noted MapView uses `pin.latitude`/`pin.longitude` (not `pin.lat`/`pin.lng`). |
 | 2026-04-08 | Charlie | Renamed package.json name field from "leaflet-test" to "travel-map" |
