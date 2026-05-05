@@ -6,6 +6,8 @@
 // to the Java backend (GET /api/pins) rather than local state.
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import MediaPreview from './MediaPreview';
+import { mediaUrl } from '../services/mediaService';
 
 // Pure View event listener — listens for user interaction on the map
 // and delegates the event upward to the Controller. Makes no decisions.
@@ -63,6 +65,11 @@ export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onE
             </span>
           </>
         ) : null}
+        {pin.mediaUrl && (
+          <div style={{ marginTop: '8px' }}>
+            <MediaPreview src={mediaUrl(pin)} maxWidth={180} alt={pin.locationName} />
+          </div>
+        )}
 
         <br />
         <br />

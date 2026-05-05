@@ -5,6 +5,7 @@
 // The View never saves data itself — it only reports what the user did.
 
 import { useState } from 'react';
+import MediaPreview from './MediaPreview';
 
 export default function PinForm({ latlng, onSave, onCancel, trips = [] }) {
 
@@ -16,6 +17,7 @@ export default function PinForm({ latlng, onSave, onCancel, trips = [] }) {
   const [visitDate, setVisitDate] = useState('');
   const [tripId, setTripId] = useState('');
   const [notes, setNotes] = useState('');
+  const [mediaFile, setMediaFile] = useState(null);
 
   const handleSave = () => {
     if (!locationName.trim()) return;
@@ -25,7 +27,8 @@ export default function PinForm({ latlng, onSave, onCancel, trips = [] }) {
       region,
       visitDate,
       tripId: tripId === '' ? null : Number(tripId),
-      notes 
+      notes,
+      mediaFile,
     });
   };
 
@@ -92,6 +95,38 @@ export default function PinForm({ latlng, onSave, onCancel, trips = [] }) {
         style={{ ...inputStyle, marginBottom: '12px', resize: 'vertical' }}
       />
 
+
+      {/* FR7 — optional media file input */}
+      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: '#555' }}>
+        Media (optional)
+      </label>
+      <input
+        type="file"
+        accept="image/*,video/*,audio/*"
+        onChange={(e) => setMediaFile(e.target.files[0] || null)}
+        style={{ marginBottom: '8px' }}
+      />
+      {mediaFile && (
+        <div style={{ marginBottom: '8px' }}>
+          <MediaPreview file={mediaFile} />
+          <button
+            type="button"
+            onClick={() => setMediaFile(null)}
+            style={{
+              marginTop: '4px',
+              padding: '4px 8px',
+              background: '#e53e3e',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            Remove file
+          </button>
+        </div>
+      )}
 
       {/* Buttons delegate to Controller handlers — View never saves data itself */}
       <div style={{ display: 'flex', gap: '8px' }}>

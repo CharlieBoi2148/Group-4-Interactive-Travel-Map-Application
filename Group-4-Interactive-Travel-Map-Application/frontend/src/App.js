@@ -20,6 +20,7 @@ import EditPinForm from './components/EditPinForm';
 import DistancePanel from './components/DistancePanel';
 
 import { createPin, getPins, deletePin, updatePin, setPinPrivacy } from './services/pinService';
+import { uploadMedia, deleteMedia } from './services/mediaService';
 import { createTrip, getTrips, setTripPrivacy } from './services/tripService';
 import { getPinToPin, getTripDistance } from './services/mapDistanceService';
 
@@ -101,9 +102,21 @@ const [tripDistances, setTripDistances] = useState({});
 
   // Receives save from PinForm, delegates to pinService, updates state.
   // async/await so it works the same whether pinService is local or fetch().
-  const handleSavePin = async ({ locationName, country, region, visitDate, notes, tripId }) => {
+  const handleSavePin = async ({ locationName, country, region, visitDate, notes, tripId, mediaFile }) => {
     if (!form) return;
-    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, country, region, visitDate, tripId, notes });
+    let pin = await createPin({
+      lat: form.lat,
+      lng: form.lng,
+      locationName, country, region, visitDate, tripId, notes
+    });
+    if (mediaFile) {
+      try {
+        pin = await uploadMedia(pin.id, mediaFile);
+      } catch (err) {
+        console.error('Pin saved, but media upload failed:', err);
+        // Keep the pin in state without media — user can retry from edit
+      }
+    }
     console.log('Pin returned from backend:', pin);
     setPins((prev) => [...prev, pin]);
     setForm(null);
@@ -163,15 +176,37 @@ if (!isLoggedIn) {
   // FR2 — step 2: User saved changes in EditPinForm.
   // Only sends the fields the user can edit — backend preserves all other fields.
   // Updates the pin in local state so the map reflects changes immediately.
-  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes }) => {
+  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes, mediaFile }) => {
     if (!editPin) return;
     try {
-      const updated = await updatePin(editPin.id, { locationName, country, region, visitDate, notes });
+      let updated = await updatePin(editPin.id, { locationName, country, region, visitDate, notes });
+      if (mediaFile) {
+        try {
+          updated = await uploadMedia(updated.id, mediaFile);
+        } catch (err) {
+          console.error('Pin updated, but media upload failed:', err);
+        }
+      }
       setPins(prev => prev.map(p => p.id === updated.id ? updated : p));
     } catch (err) {
       console.error('Failed to update pin:', err);
     } finally {
       setEditPin(null);
+    }
+  };
+
+  // FR7 — remove a pin's media file and clear its mediaUrl in local state.
+  // Updates both the pins list and editPin so the edit form refreshes immediately.
+  const handleRemoveMedia = async () => {
+    if (!editPin) return;
+    try {
+      await deleteMedia(editPin.id);
+      const cleared = { ...editPin, mediaUrl: null };
+      setPins(prev => prev.map(p => p.id === cleared.id ? cleared : p));
+      setEditPin(cleared);
+    } catch (err) {
+      console.error('Failed to remove media:', err);
+      // editPin state unchanged — UI still shows the media so user can retry
     }
   };
 
@@ -431,6 +466,7 @@ if (!isLoggedIn) {
                   onSave={handleUpdatePin}
                   onCancel={handleCancelEdit}
                   onPrivacyChange={handlePrivacyChange}
+                  onRemoveMedia={handleRemoveMedia}
                 />
               )}
 
