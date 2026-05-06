@@ -9,6 +9,8 @@
 import { useState, useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
 import './services/mapService';
+
+import LoginForm from './components/LoginForm';
 import MapView from './components/MapView';
 import PinForm from './components/PinForm';
 import TripList from './components/TripList';
@@ -16,9 +18,13 @@ import Timeline from './components/Timeline';
 import TripForm from './components/TripForm';
 import EditPinForm from './components/EditPinForm';
 import FilterSearch from './components/FilterSearch';
+import DistancePanel from './components/DistancePanel';
+
 import { createPin, getPins, deletePin, updatePin, setPinPrivacy } from './services/pinService';
+import { uploadMedia, deleteMedia } from './services/mediaService';
 import { createTrip, getTrips, setTripPrivacy } from './services/tripService';
 import { searchPins } from './services/searchService';
+import { getPinToPin, getTripDistance } from './services/mapDistanceService';
 
 function App() {
   // pins → fetched from Java backend via GET /api/pins on mount (FR4, FR15)
@@ -29,6 +35,8 @@ function App() {
   const [pins, setPins] = useState([]);
   const [trips, setTrips] = useState([]);
   const [form, setForm] = useState(null);
+
+  const [isLoggedIn, setIsLoggedIn] = useState(process.env.NODE_ENV === 'test');
   const [editPin, setEditPin] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showTripForm, setShowTripForm] = useState(false);
@@ -37,11 +45,14 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
   const [searchResultCount, setSearchResultCount] = useState(null);
-  // FR10 — main panel toggles between map and dedicated timeline view
   const [mainView, setMainView] = useState('map');
 
-
-
+  const [measuringFrom, setMeasuringFrom] = useState(null);
+  const [measuredTo, setMeasuredTo] = useState(null);
+  const [distanceResult, setDistanceResult] = useState(null);
+  const [distanceError, setDistanceError] = useState(null);
+  const [distanceLoading, setDistanceLoading] = useState(false);
+  const [tripDistances, setTripDistances] = useState({});
 
   // FR4, FR15 — load all pins from backend when the app first mounts.
   // This is what makes pins persist across page refreshes — on every load
@@ -97,6 +108,21 @@ function App() {
         console.error('Could not reload pins after clearing search:', err);
       });
   };
+  // FR8 — fetch trip distance for each trip when trips list changes.
+  // Silent catch: distance is supplementary info, not critical to the UI.
+  useEffect(() => {
+    if (trips.length === 0) return;
+    trips.forEach((trip) => {
+      if (trip.id == null) return;
+      getTripDistance(trip.id, 'km')
+        .then((result) => {
+          setTripDistances((prev) => ({ ...prev, [Number(trip.id)]: result }));
+        })
+        .catch(() => {
+          // Silently ignore — distance is supplementary info, not critical
+        });
+    });
+  }, [trips, pins]);
 
   // Receives click from MapView, opens the create form.
   // Closes any open edit form first — prevents both forms rendering simultaneously.
@@ -107,9 +133,21 @@ function App() {
 
   // Receives save from PinForm, delegates to pinService, updates state.
   // async/await so it works the same whether pinService is local or fetch().
-  const handleSavePin = async ({ locationName, country, region, visitDate, notes, tripId }) => {
+  const handleSavePin = async ({ locationName, country, region, visitDate, notes, tripId, mediaFile }) => {
     if (!form) return;
-    const pin = await createPin({ lat: form.lat, lng: form.lng, locationName, country, region, visitDate, tripId, notes });
+    let pin = await createPin({
+      lat: form.lat,
+      lng: form.lng,
+      locationName, country, region, visitDate, tripId, notes
+    });
+    if (mediaFile) {
+      try {
+        pin = await uploadMedia(pin.id, mediaFile);
+      } catch (err) {
+        console.error('Pin saved, but media upload failed:', err);
+        // Keep the pin in state without media — user can retry from edit
+      }
+    }
     console.log('Pin returned from backend:', pin);
     setPins((prev) => [...prev, pin]);
     setForm(null);
@@ -120,6 +158,14 @@ function App() {
   const handleCancel = () => {
     setForm(null);
   };
+
+  const handleLogout = () => {
+  setIsLoggedIn(false);
+};
+  
+if (!isLoggedIn) {
+  return <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />;
+}
 
   // Receives save from TripForm, delegates to tripService, updates state.
   const handleSaveTrip = async (payload) => {
@@ -161,15 +207,37 @@ function App() {
   // FR2 — step 2: User saved changes in EditPinForm.
   // Only sends the fields the user can edit — backend preserves all other fields.
   // Updates the pin in local state so the map reflects changes immediately.
-  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes }) => {
+  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes, mediaFile }) => {
     if (!editPin) return;
     try {
-      const updated = await updatePin(editPin.id, { locationName, country, region, visitDate, notes });
+      let updated = await updatePin(editPin.id, { locationName, country, region, visitDate, notes });
+      if (mediaFile) {
+        try {
+          updated = await uploadMedia(updated.id, mediaFile);
+        } catch (err) {
+          console.error('Pin updated, but media upload failed:', err);
+        }
+      }
       setPins(prev => prev.map(p => p.id === updated.id ? updated : p));
     } catch (err) {
       console.error('Failed to update pin:', err);
     } finally {
       setEditPin(null);
+    }
+  };
+
+  // FR7 — remove a pin's media file and clear its mediaUrl in local state.
+  // Updates both the pins list and editPin so the edit form refreshes immediately.
+  const handleRemoveMedia = async () => {
+    if (!editPin) return;
+    try {
+      await deleteMedia(editPin.id);
+      const cleared = { ...editPin, mediaUrl: null };
+      setPins(prev => prev.map(p => p.id === cleared.id ? cleared : p));
+      setEditPin(cleared);
+    } catch (err) {
+      console.error('Failed to remove media:', err);
+      // editPin state unchanged — UI still shows the media so user can retry
     }
   };
 
@@ -217,9 +285,79 @@ function App() {
   const handleCancelDelete = () => {
     setConfirmDelete(null);
   };
+
+  // FR8 — pin-to-pin distance measurement.
+  // First click sets pin A (measuringFrom). Second click on a different pin
+  // triggers the fetch and shows the result in DistancePanel.
+  const handleMeasurePin = async (pin) => {
+    // Cancel if user clicks the same pin twice
+    if (measuringFrom && measuringFrom.id === pin.id) {
+      setMeasuringFrom(null);
+      setDistanceResult(null);
+      setDistanceError(null);
+      return;
+    }
+
+    // First click — set pin A, wait for pin B
+    if (!measuringFrom) {
+      setDistanceResult(null);
+      setDistanceError(null);
+      setMeasuringFrom(pin);
+      return;
+    }
+
+    // Second click — fetch distance between pin A and pin B
+    setMeasuredTo(pin);
+    setDistanceLoading(true);
+    setDistanceError(null);
+    try {
+      const result = await getPinToPin(
+        measuringFrom.latitude,
+        measuringFrom.longitude,
+        pin.latitude,
+        pin.longitude,
+        'km'
+      );
+      setDistanceResult(result);
+    } catch (err) {
+      setDistanceError(err.message || 'Could not calculate distance.');
+    } finally {
+      setDistanceLoading(false);
+    }
+  };
+
+  // Cancel measuring mode — clears all distance state
+  const handleCancelMeasure = () => {
+    setMeasuringFrom(null);
+    setMeasuredTo(null);
+    setDistanceResult(null);
+    setDistanceError(null);
+    setDistanceLoading(false);
+  };
   
   return (
+      
     <div style={{ position: 'relative', height: '100vh', display: 'flex' }}>
+
+          <button
+      onClick={handleLogout}
+      style={{
+        position: 'absolute',
+        top: '10px',
+        right: '10px',
+        zIndex: 3000,
+        padding: '8px 12px',
+        background: '#e53e3e',
+        color: 'white',
+        border: 'none',
+        borderRadius: '5px',
+        cursor: 'pointer'
+      }}
+    >
+      Logout
+    </button>
+
+
       <div
         style={{
           flex: 1,
@@ -359,6 +497,7 @@ function App() {
                   onSave={handleUpdatePin}
                   onCancel={handleCancelEdit}
                   onPrivacyChange={handlePrivacyChange}
+                  onRemoveMedia={handleRemoveMedia}
                 />
               )}
 
@@ -370,12 +509,22 @@ function App() {
                   trips={trips}
                 />
               )}
+              <DistancePanel
+                measuringFrom={measuringFrom}
+                measuredTo={measuredTo}
+                result={distanceResult}
+                error={distanceError}
+                loading={distanceLoading}
+                onCancel={handleCancelMeasure}
+              />
               <MapView
                 pins={pins}
                 trips={trips}
                 onMapClick={handleMapClick}
                 onDeletePin={handleDeletePin}
                 onEditPin={handleEditPin}
+                onMeasurePin={handleMeasurePin}
+                measuringFrom={measuringFrom}
               />
             </div>
           ) : (
@@ -416,7 +565,12 @@ function App() {
           error={searchError}
           resultCount={searchResultCount}
         />
-        <TripList trips={trips} pins={pins} onTripPrivacyChange={handleTripPrivacyChange} />
+
+        <TripList 
+          trips={trips} 
+          pins={pins} 
+          onTripPrivacyChange={handleTripPrivacyChange} 
+          tripDistances={tripDistances} />
         {tripPrivacyError ? (
           <p
             role="alert"

@@ -11,6 +11,8 @@
 // not on Save. This matches the SRS requirement that changes apply immediately.
 
 import { useState } from 'react';
+import MediaPreview from './MediaPreview';
+import { mediaUrl } from '../services/mediaService';
 
 const PRIVACY_OPTIONS = [
   { value: 'PRIVATE', label: 'Private' },
@@ -18,7 +20,7 @@ const PRIVACY_OPTIONS = [
   { value: 'PUBLIC', label: 'Public' },
 ];
 
-export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange }) {
+export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange, onRemoveMedia }) {
 
   // Pre-fill controlled inputs with existing pin data
   const [locationName, setLocationName] = useState(pin.locationName || '');
@@ -27,12 +29,13 @@ export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange }) 
   const [visitDate, setVisitDate] = useState(pin.visitDate || '');
   const [notes, setNotes] = useState(pin.notes || '');
   const [privacyLevel, setPrivacyLevel] = useState(pin.privacyLevel || 'PRIVATE');
+  const [mediaFile, setMediaFile] = useState(null);
 
   const handleSave = () => {
     if (!locationName.trim()) return;
     // Only pass the fields the user can edit — App.js sends these to updatePin()
     // Backend PinService applies a partial update, preserving all other fields
-    onSave({ locationName, country, region, visitDate, notes });
+    onSave({ locationName, country, region, visitDate, notes, mediaFile });
   };
 
   // FR11 — privacy change is immediate, not bundled with Save
@@ -104,6 +107,67 @@ export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange }) 
           <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
+
+      {/* FR7 — media display, replace, and remove */}
+      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: '#555' }}>
+        Media
+      </label>
+
+      {/* Show current server-side media if one exists AND user hasn't picked a replacement */}
+      {!mediaFile && mediaUrl(pin) && (
+        <div style={{ marginBottom: '8px' }}>
+          <MediaPreview src={mediaUrl(pin)} />
+          {onRemoveMedia && (
+            <button
+              type="button"
+              onClick={() => onRemoveMedia()}
+              style={{
+                marginTop: '4px',
+                padding: '4px 8px',
+                background: '#e53e3e',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              Remove media
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* File picker — always available, lets user replace or add */}
+      <input
+        type="file"
+        accept="image/*,video/*,audio/*"
+        onChange={(e) => setMediaFile(e.target.files[0] || null)}
+        style={{ marginBottom: '8px' }}
+      />
+
+      {/* Local file preview — shown when user has picked a file (replacing or adding) */}
+      {mediaFile && (
+        <div style={{ marginBottom: '8px' }}>
+          <MediaPreview file={mediaFile} />
+          <button
+            type="button"
+            onClick={() => setMediaFile(null)}
+            style={{
+              marginTop: '4px',
+              padding: '4px 8px',
+              background: '#718096',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            Remove file
+          </button>
+        </div>
+      )}
 
       {/* Buttons delegate to Controller handlers — View never saves data itself */}
       <div style={{ display: 'flex', gap: '8px' }}>

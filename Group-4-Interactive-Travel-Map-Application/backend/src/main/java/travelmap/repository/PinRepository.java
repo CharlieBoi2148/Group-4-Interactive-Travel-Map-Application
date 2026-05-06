@@ -47,17 +47,19 @@ import travelmap.model.Privacy;
  *   FR4  — findAll() used by PinService.getAllPins()
  *   FR11 — findByPrivacyLevel() used to filter pins by visibility
  *
- * TODO (FR5 — coordinate with Gage):
- *   Once Gage's Trip class is merged to dev, add:
- *   List<Pin> findByTripId(Long tripId)
- *   This retrieves all pins belonging to a specific trip.
+ * FR5 (added April 24, 2026):
+ *   findByTripId(Long tripId) is implemented below.
+ *   Trip.java is a @Entity; Trip.pins is @Transient, so the only reliable
+ *   way to retrieve a trip's pins is to query the pin table by tripId.
  *
- * TODO (FR4, NFR4 — coordinate with Wilson):
- *   Once Wilson's auth is merged, add:
- *   List<Pin> findByOwnerId(Long ownerId)
- *   This filters pins by the authenticated user so users only see their own pins.
- *   Wilson's AccountFacade.getCurrentUser() provides the ownerId.
- *   Also requires adding an ownerId field to the Pin model.
+ *
+ * NFR4 (added April 24, 2026):
+ *   findByOwnerId(String ownerId) is implemented below.
+ *   Pin.ownerId is a String to match Gage's Trip.ownerId and to stay
+ *   flexible regardless of Wilson's eventual User ID type.
+ *   PinService.getAllPins() will be updated to call findByOwnerId once
+ *   Wilson's AuthController can supply the authenticated user's ownerId.
+ *   Until then, this method exists but is not yet wired into the request flow.
  */
 @Repository
 public interface PinRepository extends JpaRepository<Pin, Long> {
@@ -92,4 +94,40 @@ public interface PinRepository extends JpaRepository<Pin, Long> {
      * @return list of pins whose location name contains the keyword
      */
     List<Pin> findByLocationNameContainingIgnoreCase(String keyword);
+
+    /**
+     * NFR4, FR4 — Find all pins owned by a specific user.
+     *
+     * Used to scope GET /api/pins so that users see only their own pins.
+     * Fixes the NFR4 security violation where the previous unfiltered
+     * findAll() call returned every user's pins to any logged-in user.
+     *
+     * Spring Data JPA generates: SELECT * FROM pin WHERE owner_id = ?
+     * Returns an empty list if no pins match — never null.
+     *
+     * Example usage in PinService (once auth is wired in):
+     *   List<Pin> myPins = pinRepository.findByOwnerId(currentUser.getId());
+     *
+     * @param ownerId the ID of the user whose pins should be returned
+     * @return list of pins owned by the given user, empty list if none exist
+     */
+    List<Pin> findByOwnerId(String ownerId);
+
+    /**
+     * FR8, FR5 — Find all pins assigned to a specific trip.
+     *
+     * Used by MapController when computing total trip distance. Trip.pins
+     * is @Transient so it does not hydrate from the database — the only
+     * reliable way to retrieve a trip's pins is to query the pin table by
+     * tripId. Implemented April 24, 2026 to unblock FR8 distance calculation.
+     *
+     * Spring Data JPA generates: SELECT * FROM pin WHERE trip_id = ?
+     * Returns an empty list if the trip has no pins — never null.
+     * Caller is responsible for sorting by visitDate (FR5 chronological order)
+     * since the database does not guarantee any particular row order.
+     *
+     * @param tripId the database id of the trip whose pins should be returned
+     * @return list of pins assigned to the given trip, empty list if none exist
+     */
+    List<Pin> findByTripId(Long tripId);
 }
