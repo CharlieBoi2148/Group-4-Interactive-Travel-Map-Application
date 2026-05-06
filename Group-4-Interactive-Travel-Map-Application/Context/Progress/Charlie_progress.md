@@ -146,6 +146,8 @@ Files changed:
 
 Test delta: 144 → 151 backend, 116 → 117 frontend, 260 → 268 total
 
+**Post-fix integration (May 6):** Merged dev into branch to pull in Gage's PR #11 (SearchController + FilterSearch + TripServiceTest + SearchControllerTest). Auto-merge resolved cleanly — no manual conflict resolution. Tests post-merge: 156/119/275 (+5 backend, +2 frontend from Gage). Bug 4 discovered during verification: `SearchController.search()` returns pins across users with no owner filter (same NFR4 shape as Bug 2). Deferred to Gage. Bug 2 fix verified still intact through merge.
+
 ---
 
 ## Known Tech Debt (deferred to final sprint)
@@ -160,6 +162,7 @@ Test delta: 144 → 151 backend, 116 → 117 frontend, 260 → 268 total
 ## Known Bugs (open)
 
 - **Bug 3 — Trip owner filtering:** `TripController.getAllTrips()` returns all trips regardless of owner; `Trip.ownerId` not stamped on create. Discovered May 6 2026 during Bug 2 verification. Fix pattern identical to Bug 2. Owner: Gage (TripController / TripService). Blocks NFR4 for trips.
+- **Bug 4 — Search results unfiltered by owner (NFR4):** `SearchController.search()` calls `pinRepository.findByLocationNameContainingIgnoreCase()` with no owner filter. Pins from all users are returned for any keyword match. Discovered May 6 during post-merge verification of Gage's PR #11. Fix: inject `AccountFacade`, filter results by `ownerId`. Owner: Gage (SearchController). Blocks NFR4 for FR9 search.
 
 ## Blocked On (waiting for teammates)
 - Edit/delete/privacy owner enforcement → blocked on Wilson's auth merge (createPin and getAllPins now fixed — Bug 2 closed)
@@ -169,7 +172,7 @@ Test delta: 144 → 151 backend, 116 → 117 frontend, 260 → 268 total
 
 ---
 
-### Current Test Count: 151 (backend) / 117 (frontend) / 268 (total)
+### Current Test Count: 156 (backend) / 119 (frontend) / 275 (total)
 
 ---
 
@@ -177,6 +180,7 @@ Test delta: 144 → 151 backend, 116 → 117 frontend, 260 → 268 total
 
 | Date | Change |
 |---|---|
+| 2026-05-06 | Dev merged into branch — Gage's PR #11 (SearchController + FilterSearch + TripServiceTest + SearchControllerTest). Auto-merge clean. Tests: 151/117/268 → 156/119/275 (+5 backend, +2 frontend). Bug 4 discovered: SearchController no owner filter (Gage's domain). Bug 2 verified intact. |
 | 2026-05-06 | Bug 2 closed (NFR4 pin owner filtering). Backend: PinController + PinService refactored, AccountFacade injected, 401 guard added. PinServiceTest (15→20), PinControllerTest (10→12). Frontend: App.js useEffect([isLoggedIn]) refactor, handleLogout expanded, App.test.js (24→25). Test floor: 144/116/260 → 151/117/268. Verified 8-step multi-user scenario. Bug 3 discovered: trip owner leakage. Branch: feature/pin-owner-filtering. |
 | 2026-04-08 | Phase 1 complete. All 34 tests passing. Master Context Document generated. |
 | 2026-04-08 | Renamed `package.json` name field from `leaflet-test` to `travel-map` |
