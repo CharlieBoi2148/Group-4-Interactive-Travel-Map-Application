@@ -39,7 +39,7 @@ export default function TripList({ trips, pins = [], onTripPrivacyChange, tripDi
       <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>Your trips</h3>
       {trips.length === 0 ? (
         <p style={{ margin: 0, fontSize: '13px', color: '#666' }}>
-          No trips yet. Use &quot;New trip&quot; to create one (FR5).
+          No trips yet. Use &quot;New trip&quot; to create one.
         </p>
       ) : (
         <ul

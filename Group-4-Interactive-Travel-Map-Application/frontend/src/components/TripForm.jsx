@@ -38,7 +38,7 @@ export default function TripForm({ onSave, onCancel }) {
         boxShadow: '0 1px 6px rgba(0,0,0,0.08)',
       }}
     >
-      <h4 style={{ margin: '0 0 12px', fontSize: '15px' }}>New trip (FR5)</h4>
+      <h4 style={{ margin: '0 0 12px', fontSize: '15px' }}>New Trip</h4>
       <input
         data-testid="trip-name-input"
         value={name}
