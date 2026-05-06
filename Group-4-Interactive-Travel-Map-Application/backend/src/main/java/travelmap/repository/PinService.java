@@ -133,6 +133,22 @@ public class PinService {
     }
 
     /**
+     * FR9 — Search pins by keyword.
+     *
+     * <p>Returns all pins when keyword is null/blank so the search view can
+     * gracefully load default results without forcing a non-empty query.
+     *
+     * @param keyword keyword to match against pin location names
+     * @return matching pins, or all pins when keyword is blank
+     */
+    public List<Pin> searchPins(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return pinRepository.findAll();
+        }
+        return pinRepository.findByLocationNameContainingIgnoreCase(keyword.trim());
+    }
+
+    /**
      * FR2 — Update an existing pin's fields.
      *
      * Finds the existing pin by id, applies the updated fields from the
