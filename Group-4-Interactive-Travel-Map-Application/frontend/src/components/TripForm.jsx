@@ -8,12 +8,18 @@ import { useState } from 'react';
  * @param {function(Object): void} props.onSave called with { name, description, startDate, endDate, privacyLevel }
  * @param {function(): void} props.onCancel
  */
-export default function TripForm({ onSave, onCancel }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [privacyLevel, setPrivacyLevel] = useState('PRIVATE');
+export default function TripForm({
+  onSave,
+  onCancel,
+  initialValues = null,
+  title = 'New Trip',
+  saveLabel = 'Save trip',
+}) {
+  const [name, setName] = useState(initialValues?.name || '');
+  const [description, setDescription] = useState(initialValues?.description || '');
+  const [startDate, setStartDate] = useState(initialValues?.startDate || '');
+  const [endDate, setEndDate] = useState(initialValues?.endDate || '');
+  const [privacyLevel, setPrivacyLevel] = useState(initialValues?.privacyLevel || 'PRIVATE');
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -38,7 +44,7 @@ export default function TripForm({ onSave, onCancel }) {
         boxShadow: '0 1px 6px rgba(0,0,0,0.08)',
       }}
     >
-      <h4 style={{ margin: '0 0 12px', fontSize: '15px' }}>New Trip</h4>
+      <h4 style={{ margin: '0 0 12px', fontSize: '15px' }}>{title}</h4>
       <input
         data-testid="trip-name-input"
         value={name}
@@ -110,7 +116,7 @@ export default function TripForm({ onSave, onCancel }) {
             cursor: 'pointer',
           }}
         >
-          Save trip
+          {saveLabel}
         </button>
         <button
           type="button"

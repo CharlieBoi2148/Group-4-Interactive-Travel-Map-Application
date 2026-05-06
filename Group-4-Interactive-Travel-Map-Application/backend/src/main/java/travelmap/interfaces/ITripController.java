@@ -32,6 +32,15 @@ public interface ITripController {
     ResponseEntity<List<Trip>> getAllTrips();
 
     /**
+     * FR5 — Update an existing trip ({@code PUT /api/trips/{id}}).
+     *
+     * @param id trip id
+     * @param trip request body containing updated fields
+     * @return HTTP 200 with updated trip, 400 for invalid input, or 404 if missing
+     */
+    ResponseEntity<Trip> updateTrip(Long id, Trip trip);
+
+    /**
      * FR11 — Update privacy for an existing trip ({@code PATCH /api/trips/{id}/privacy}).
      *
      * @param id trip id

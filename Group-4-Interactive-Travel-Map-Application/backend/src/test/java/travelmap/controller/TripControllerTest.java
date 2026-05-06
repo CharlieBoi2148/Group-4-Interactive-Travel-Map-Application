@@ -4,11 +4,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -99,5 +101,38 @@ class TripControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(5))
                 .andExpect(jsonPath("$[0].name").value("Road trip"));
+    }
+
+    @Test
+    void updateTrip_valid_returns200AndBody() throws Exception {
+        Trip request = new Trip();
+        request.setName("Updated name");
+
+        Trip updated = new Trip("Updated name", "Summer", null, null, null, Privacy.PRIVATE, "user-1");
+        updated.setId(1L);
+
+        when(tripService.updateTrip(any(Long.class), any(Trip.class))).thenReturn(Optional.of(updated));
+
+        mockMvc.perform(
+                        put("/api/trips/1")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Updated name"));
+    }
+
+    @Test
+    void updateTrip_missingTrip_returns404() throws Exception {
+        Trip request = new Trip();
+        request.setName("Updated name");
+
+        when(tripService.updateTrip(any(Long.class), any(Trip.class))).thenReturn(Optional.empty());
+
+        mockMvc.perform(
+                        put("/api/trips/99")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound());
     }
 }

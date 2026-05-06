@@ -100,6 +100,44 @@ export async function createTrip({ name, description, startDate, endDate, privac
 }
 
 /**
+ * FR5 — Edit an existing trip.
+ * @param {number|string} id trip id
+ * @param {Object} trip updated fields
+ * @returns {Promise<Object>} updated trip
+ */
+export async function updateTrip(id, { name, description, startDate, endDate, privacyLevel }) {
+  const body = {
+    name,
+    description: nullIfBlank(description),
+    startDate: nullIfBlank(startDate),
+    endDate: nullIfBlank(endDate),
+    privacyLevel: privacyLevel || 'PRIVATE',
+  };
+
+  let response;
+  try {
+    response = await fetch(`${TRIPS_URL}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw wrapNetworkError(e);
+  }
+
+  if (response.status === 400) {
+    throw new Error('Trip validation failed (name is required).');
+  }
+  if (response.status === 404) {
+    throw new Error('Trip not found.');
+  }
+  if (!response.ok) {
+    throw new Error(`Could not update trip (HTTP ${response.status}). ${NETWORK_HINT}`);
+  }
+  return response.json();
+}
+
+/**
  * FR11 — Update an existing trip privacy level.
  * @param {number|string} id trip id
  * @param {string} privacyLevel PRIVATE | FRIENDS_ONLY | PUBLIC

@@ -54,6 +54,7 @@ jest.mock('./services/tripService', () => ({
   __esModule: true,
   getTrips: jest.fn(),
   createTrip: jest.fn(),
+  updateTrip: jest.fn(),
   setTripPrivacy: jest.fn(),
 }));
 

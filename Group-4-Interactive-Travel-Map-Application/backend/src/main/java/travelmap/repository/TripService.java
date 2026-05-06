@@ -65,6 +65,37 @@ public class TripService {
     }
 
     /**
+     * Update mutable trip fields for an existing trip.
+     *
+     * @param id trip id
+     * @param updates fields to update
+     * @return optional updated trip
+     */
+    public Optional<Trip> updateTrip(Long id, Trip updates) {
+        return tripRepository.findById(id).map(existing -> {
+            if (updates.getName() != null) {
+                if (updates.getName().isBlank()) {
+                    throw new IllegalArgumentException("Trip name is required");
+                }
+                existing.setName(updates.getName());
+            }
+            if (updates.getDescription() != null) {
+                existing.setDescription(updates.getDescription());
+            }
+            if (updates.getStartDate() != null) {
+                existing.setStartDate(updates.getStartDate());
+            }
+            if (updates.getEndDate() != null) {
+                existing.setEndDate(updates.getEndDate());
+            }
+            if (updates.getPrivacyLevel() != null) {
+                existing.setPrivacyLevel(updates.getPrivacyLevel());
+            }
+            return tripRepository.save(existing);
+        });
+    }
+
+    /**
      * Retrieve timeline-ordered trips for an owner.
      *
      * @param ownerId owner identifier
