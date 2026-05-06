@@ -51,5 +51,14 @@ class SearchControllerTest {
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].locationName").value("Eiffel Tower"));
     }
+
+    @Test
+    void searchPins_blankKeywordParam_returns200AndArray() throws Exception {
+        when(pinService.searchPins("   ")).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/search").param("keyword", "   "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
 }
 
