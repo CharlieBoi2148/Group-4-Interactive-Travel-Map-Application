@@ -49,12 +49,17 @@ const [distanceError, setDistanceError] = useState(null);
 const [distanceLoading, setDistanceLoading] = useState(false);
 const [tripDistances, setTripDistances] = useState({});
 
-  // FR4, FR15 — load all pins from backend when the app first mounts.
-  // This is what makes pins persist across page refreshes — on every load
-  // React fetches all saved pins from H2 via GET /api/pins and renders
-  // them as markers. Without this, pins only exist in local state and
-  // disappear on refresh.
+  // FR4, FR15, NFR4 — load pins and trips after login, clear on logout.
+  // When isLoggedIn flips true, fetch the user's pins and trips from the
+  // backend. When it flips false, clear local state so no data leaks
+  // across users in the same browser session.
   useEffect(() => {
+    if (!isLoggedIn) {
+      setPins([]);
+      setTrips([]);
+      setTripDistances({});
+      return;
+    }
     getPins()
       .then((data) => {
         console.log('Loaded pins from backend:', data);
@@ -63,10 +68,6 @@ const [tripDistances, setTripDistances] = useState({});
       .catch((err) => {
         console.error('Could not load pins from backend:', err);
       });
-  }, []); // empty array -> runs once on mount only
-
-  // FR4, FR15 — load trips on mount so dashboard can render saved trips.
-  useEffect(() => {
     getTrips()
       .then((data) => {
         console.log('Loaded trips from backend:', data);
@@ -75,7 +76,7 @@ const [tripDistances, setTripDistances] = useState({});
       .catch((err) => {
         console.error('Could not load trips from backend:', err);
       });
-  }, []);
+  }, [isLoggedIn]);
 
   // FR8 — fetch trip distance for each trip when trips list changes.
   // Silent catch: distance is supplementary info, not critical to the UI.
@@ -128,9 +129,22 @@ const [tripDistances, setTripDistances] = useState({});
     setForm(null);
   };
 
+  // Logout — clear auth state and all session-scoped UI state.
+  // Data state (pins, trips, tripDistances) is cleared by the useEffect
+  // above when isLoggedIn flips to false.
   const handleLogout = () => {
-  setIsLoggedIn(false);
-};
+    setIsLoggedIn(false);
+    setForm(null);
+    setEditPin(null);
+    setConfirmDelete(null);
+    setMeasuringFrom(null);
+    setMeasuredTo(null);
+    setDistanceResult(null);
+    setDistanceError(null);
+    setShowTripForm(false);
+    setTripSaveError(null);
+    setTripPrivacyError(null);
+  };
   
 if (!isLoggedIn) {
   return <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />;

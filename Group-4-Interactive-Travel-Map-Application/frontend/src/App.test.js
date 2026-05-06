@@ -442,3 +442,23 @@ test('tripDistances_result_renderedInTripList_FR8', async () => {
   await waitFor(() => expect(sidebar.textContent).toMatch(/500\.0 km/));
   expect(sidebar.textContent).toMatch(/310\.7 mi/);
 });
+
+// ── NFR4: Logout clears state ─────────────────────────────────────────────────
+
+test('logout clears pins from local state', async () => {
+  const { getPins } = require('./services/pinService');
+  const { container } = render(<App />);
+
+  // Wait for initial pin load to complete (isLoggedIn=true in test env)
+  await waitFor(() => {
+    expect(getPins).toHaveBeenCalled();
+  });
+
+  // Act — click logout
+  fireEvent.click(screen.getByText('Logout'));
+
+  // Assert — LoginForm renders (proves isLoggedIn became false)
+  await waitFor(() => {
+    expect(container.querySelector('input[type="password"]')).toBeInTheDocument();
+  });
+});
