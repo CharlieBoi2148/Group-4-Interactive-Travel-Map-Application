@@ -97,7 +97,7 @@ class PinServiceTest {
         when(pinRepository.save(any(Pin.class))).thenReturn(saved);
 
         // Act
-        Pin result = pinService.createPin(input);
+        Pin result = pinService.createPin(input, "alice");
 
         // Assert
         assertNotNull(result);
@@ -114,7 +114,7 @@ class PinServiceTest {
         when(pinRepository.save(any(Pin.class))).thenReturn(input);
 
         // Act
-        pinService.createPin(input);
+        pinService.createPin(input, "alice");
 
         // Assert — privacy should be set to PRIVATE before saving
         assertEquals(Privacy.PRIVATE, input.getPrivacyLevel());
@@ -127,7 +127,7 @@ class PinServiceTest {
         input.setLocationName(null);
 
         // Act + Assert — no save should happen
-        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input));
+        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input, "alice"));
         verify(pinRepository, never()).save(any());
     }
 
@@ -138,7 +138,7 @@ class PinServiceTest {
         input.setLocationName("   ");
 
         // Act + Assert
-        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input));
+        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input, "alice"));
         verify(pinRepository, never()).save(any());
     }
 
@@ -149,7 +149,7 @@ class PinServiceTest {
         input.setLatitude(null);
 
         // Act + Assert
-        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input));
+        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input, "alice"));
         verify(pinRepository, never()).save(any());
     }
 
@@ -160,41 +160,92 @@ class PinServiceTest {
         input.setLongitude(null);
 
         // Act + Assert
-        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input));
+        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input, "alice"));
+        verify(pinRepository, never()).save(any());
+    }
+
+    @Test
+    void createPin_throwsException_whenOwnerIdIsNull() {
+        // Arrange
+        Pin input = buildValidPin();
+
+        // Act + Assert — NFR4: ownerId is mandatory
+        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input, null));
+        verify(pinRepository, never()).save(any());
+    }
+
+    @Test
+    void createPin_throwsException_whenOwnerIdIsBlank() {
+        // Arrange
+        Pin input = buildValidPin();
+
+        // Act + Assert
+        assertThrows(IllegalArgumentException.class, () -> pinService.createPin(input, "   "));
         verify(pinRepository, never()).save(any());
     }
 
     // ── FR4: getAllPins() ─────────────────────────────────────────────────────
 
     @Test
-    void getAllPins_returnsAllPins() {
+    void getAllPins_returnsOwnersPins() {
         // Arrange
         Pin pin1 = buildValidPin();
         pin1.setId(1L);
+        pin1.setOwnerId("alice");
         Pin pin2 = buildValidPin();
         pin2.setId(2L);
         pin2.setLocationName("Colosseum");
-        when(pinRepository.findAll()).thenReturn(List.of(pin1, pin2));
+        pin2.setOwnerId("alice");
+        when(pinRepository.findByOwnerId("alice")).thenReturn(List.of(pin1, pin2));
 
         // Act
-        List<Pin> result = pinService.getAllPins();
+        List<Pin> result = pinService.getAllPins("alice");
 
         // Assert
         assertEquals(2, result.size());
-        verify(pinRepository, times(1)).findAll();
+        verify(pinRepository, times(1)).findByOwnerId("alice");
     }
 
     @Test
-    void getAllPins_returnsEmptyList_whenNoPinsExist() {
+    void getAllPins_returnsEmptyList_whenOwnerHasNoPins() {
         // Arrange
-        when(pinRepository.findAll()).thenReturn(List.of());
+        when(pinRepository.findByOwnerId("alice")).thenReturn(List.of());
 
         // Act
-        List<Pin> result = pinService.getAllPins();
+        List<Pin> result = pinService.getAllPins("alice");
 
         // Assert — never null, always a list React can call .map() on
         assertNotNull(result);
         assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void getAllPins_doesNotReturnOtherUsersPins() {
+        // Arrange — alice has one pin, bob's pin is not returned
+        Pin alicePin = buildValidPin();
+        alicePin.setId(1L);
+        alicePin.setOwnerId("alice");
+        when(pinRepository.findByOwnerId("alice")).thenReturn(List.of(alicePin));
+
+        // Act
+        List<Pin> result = pinService.getAllPins("alice");
+
+        // Assert — only alice's pin returned; bob's pin never loaded
+        assertEquals(1, result.size());
+        assertEquals("alice", result.get(0).getOwnerId());
+        verify(pinRepository, never()).findAll();
+    }
+
+    @Test
+    void getAllPins_throwsException_whenOwnerIdIsNull() {
+        assertThrows(IllegalArgumentException.class, () -> pinService.getAllPins(null));
+        verify(pinRepository, never()).findByOwnerId(any());
+    }
+
+    @Test
+    void getAllPins_throwsException_whenOwnerIdIsBlank() {
+        assertThrows(IllegalArgumentException.class, () -> pinService.getAllPins("   "));
+        verify(pinRepository, never()).findByOwnerId(any());
     }
 
     // ── FR2: updatePin() ─────────────────────────────────────────────────────

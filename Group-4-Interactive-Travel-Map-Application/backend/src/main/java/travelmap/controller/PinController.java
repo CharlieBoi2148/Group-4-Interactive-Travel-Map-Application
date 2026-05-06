@@ -1,8 +1,10 @@
 package travelmap.controller;
 
+import travelmap.account.AccountFacade;
 import travelmap.interfaces.IPinController;
 import travelmap.model.Pin;
 import travelmap.model.Privacy;
+import travelmap.model.User;
 import travelmap.repository.PinService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -69,18 +71,18 @@ import java.util.List;
 public class PinController implements IPinController {
 
     private final PinService pinService;
+    private final AccountFacade accountFacade;
 
     /**
-     * Constructor injection — PinService provided by Spring on startup.
-     * Constructor injection is preferred over field injection so that
-     * PinControllerTest can pass a mock PinService directly:
-     *   PinController controller = new PinController(mockService);
+     * Constructor injection — PinService and AccountFacade provided by Spring on startup.
      *
-     * @param pinService the service handling all pin business logic
+     * @param pinService     the service handling all pin business logic
+     * @param accountFacade  provides the authenticated user via getCurrentUser()
      */
     @Autowired
-    public PinController(PinService pinService) {
+    public PinController(PinService pinService, AccountFacade accountFacade) {
         this.pinService = pinService;
+        this.accountFacade = accountFacade;
     }
 
     /**
@@ -114,8 +116,12 @@ public class PinController implements IPinController {
     @Override
     @PostMapping
     public ResponseEntity<Pin> createPin(@RequestBody Pin pin) {
+        User currentUser = accountFacade.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         try {
-            Pin saved = pinService.createPin(pin);
+            Pin saved = pinService.createPin(pin, currentUser.getUsername());
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
@@ -123,7 +129,7 @@ public class PinController implements IPinController {
     }
 
     /**
-     * FR4 — Retrieve all pins as a JSON array.
+     * FR4 — Retrieve all pins belonging to the authenticated user.
      *
      * Called by MapView.jsx on component mount via useEffect — this is what
      * makes pins reload on page refresh. Returns an empty array if no pins
@@ -132,18 +138,24 @@ public class PinController implements IPinController {
      * Pins must load within 2 seconds per SRS FR4. H2 is fast enough for
      * development. PostgreSQL with proper indexing handles production load.
      *
-     * CRITICAL TODO (coordinate with Wilson — FR4, NFR4):
-     * Currently returns ALL pins from all users. Once Wilson's auth branch
-     * merges to dev, extract the authenticated user from the session/token
-     * and pass their id to PinService.getAllPins(userId) so users only
-     * see their own pins. See PinService.getAllPins() for full details.
+     * Returns HTTP 401 if no user is logged in — AccountFacade.getCurrentUser()
+     * returns null when no session is active.
      *
-     * @return HTTP 200 with JSON array of all pins
+     * @return HTTP 200 with JSON array of the caller's pins, or HTTP 401 if not logged in
      */
     @Override
     @GetMapping
     public ResponseEntity<List<Pin>> getAllPins() {
-        return ResponseEntity.ok(pinService.getAllPins());
+        User currentUser = accountFacade.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        try {
+            List<Pin> pins = pinService.getAllPins(currentUser.getUsername());
+            return ResponseEntity.ok(pins);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     /**

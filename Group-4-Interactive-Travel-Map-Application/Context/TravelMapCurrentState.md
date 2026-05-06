@@ -168,8 +168,8 @@ Group-4-Interactive-Travel-Map-Application/
 │       │   └── resources/
 │       │       └── application.properties              H2 config; PostgreSQL commented out; multipart upload config + travelmap.media.upload-dir property (FR7)
 │       └── test/java/travelmap/
-│           ├── PinServiceTest.java                     15 unit tests (IMPLEMENTED)
-│           ├── PinControllerTest.java                  10 integration tests (IMPLEMENTED)
+│           ├── PinServiceTest.java                     20 unit tests (IMPLEMENTED)
+│           ├── PinControllerTest.java                  12 integration tests (IMPLEMENTED)
 │           ├── DistanceCalculatorTest.java             22 unit tests, input partitioning (IMPLEMENTED)
 │           ├── DistanceResultTest.java                 14 unit tests (IMPLEMENTED)
 │           ├── MapAPIClientTest.java                   19 unit tests, Mockito (IMPLEMENTED)
@@ -182,7 +182,7 @@ Group-4-Interactive-Travel-Map-Application/
     ├── package.json                                    React 19.2.4, Leaflet 1.9.4
     └── src/
         ├── App.js                                      Controller layer (IMPLEMENTED — FR7: chained upload + handleRemoveMedia)
-        ├── App.test.js                                 24 tests — FR6, FR3, FR2, FR11, FR10, FR8
+        ├── App.test.js                                 25 tests — FR6, FR3, FR2, FR11, FR10, FR8, NFR4
         ├── PinForm.test.js                             11 tests — FR1 (8) + FR7 file input (3)
         ├── EditPinForm.test.js                         18 tests — FR2 (8), FR11 privacy (5), FR7 media (6) (IMPLEMENTED)
         ├── mediaService.test.js                        9 tests — FR7 fetch wrappers (IMPLEMENTED)
@@ -367,7 +367,7 @@ Available at: `http://localhost:8080/h2-console`
 
 | File | Status | Notes |
 |---|---|---|
-| `App.js` | [IMPLEMENTED] | Controller layer. Holds `pins`, `form`, `editPin`, `confirmDelete`, distance, and `tripDistances` state. `handleSavePin` chains `createPin → uploadMedia` with inner try/catch (pin saved even if upload fails). `handleUpdatePin` same pattern. `handleRemoveMedia` calls `deleteMedia` and clears `mediaUrl` from state. |
+| `App.js` | [IMPLEMENTED] | Controller layer. Holds `pins`, `form`, `editPin`, `confirmDelete`, distance, and `tripDistances` state. `handleSavePin` chains `createPin → uploadMedia` with inner try/catch (pin saved even if upload fails). `handleUpdatePin` same pattern. `handleRemoveMedia` calls `deleteMedia` and clears `mediaUrl` from state. `useEffect([isLoggedIn])` fetches pins + trips on login and clears all data on logout (Bug 2 fix, May 6 2026). `handleLogout` clears all session-scoped UI state. |
 | `MapView.jsx` | [IMPLEMENTED] | Pure View. Renders Leaflet markers with popup: location name, visit date, media thumbnail (`MediaPreview` with 180px cap), Edit/Delete/Measure buttons. `PinPlacer` inner component delegates map click events upward. |
 | `PinForm.jsx` | [IMPLEMENTED] | Pure View. Controlled inputs for all pin fields + file input (`accept="image/*,video/*,audio/*"`), local `MediaPreview`, Remove file button. `mediaFile` included in `onSave` payload. |
 | `EditPinForm.jsx` | [IMPLEMENTED] | Pure View. Pre-fills from `pin` prop. Shows existing server media (`<img>` + "Remove media" button when `onRemoveMedia` prop is present), file input for replace, local `MediaPreview`. `mediaFile` in `onSave` payload. |
@@ -406,8 +406,8 @@ The import is already present. This TODO item has been resolved and should be re
 
 | Test File | Type | Tests | FRs Covered |
 |---|---|---|---|
-| `PinServiceTest.java` | Backend unit | 15 | FR1 (6), FR4 (2), FR2 (3), FR3 (2), FR11 (2) |
-| `PinControllerTest.java` | Backend integration | 10 | FR1 (2), FR4 (2), FR2 (2), FR3 (2), FR11 (2) |
+| `PinServiceTest.java` | Backend unit | 20 | FR1 (8 — incl. ownerId null/blank), FR4 (5 — incl. isolation + ownerId guards), FR2 (3), FR3 (2), FR11 (2) |
+| `PinControllerTest.java` | Backend integration | 12 | FR1 (3 — incl. 401), FR4 (3 — incl. 401), FR2 (2), FR3 (2), FR11 (2) |
 | `TripServiceTest.java` | Backend unit | 11 | FR5 — trip CRUD and timeline sort |
 | `TripControllerTest.java` | Backend integration | 4 | FR5 — trip endpoints |
 | `DistanceCalculatorTest.java` | Backend unit | 22 | FR8 — Haversine math, coordinate validation, unit conversion |
@@ -416,18 +416,20 @@ The import is already present. This TODO item has been resolved and should be re
 | `MapControllerTest.java` | Backend integration | 12 | FR8 — all 3 endpoints, 200/400/404 paths, unit param, skippedPinIds |
 | `MediaServiceTest.java` | Backend unit | 23 | FR7 — upload/read/delete logic; NFR4 — path traversal defense, filename sanitisation |
 | `MediaControllerTest.java` | Backend integration | 14 | FR7 — HTTP layer (201/200/204); NFR3 — ISE → 500 disk failure mapping; NFR4 — IAE → 400/404 |
-| `App.test.js` | Frontend | 24 | FR6, FR3, FR2, FR11, FR10, FR8 |
+| `SearchControllerTest.java` | Backend integration | 5 | FR9 — search endpoint, 200/400 paths |
+| `App.test.js` | Frontend | 25 | FR6, FR3, FR2, FR11, FR10, FR8, NFR4 (logout clears state) |
 | `PinForm.test.js` | Frontend | 11 | FR1 — form inputs, save, cancel (8); FR7 — file input accept, save includes file, Remove clears payload (3) |
 | `EditPinForm.test.js` | Frontend | 18 | FR2 — form pre-fill and save (8); FR11 — privacy dropdown (5); FR7 — media display, replace, remove, save payload (6) (note: 2 pre-existing tests updated to include `mediaFile: null`) |
 | `MapView.test.js` | Frontend | 14 | FR6 markers, FR3 delete button, FR8 Measure button (8 new) |
 | `DistancePanel.test.jsx` | Frontend | 17 | FR8 — panel visibility, result display, cancel button |
 | `mediaService.test.js` | Frontend | 9 | FR7 — uploadMedia (4: success, null pinId, null file, non-OK); deleteMedia (2: success, non-OK); mediaUrl helper (3) |
 | `MediaPreview.test.jsx` | Frontend | 10 | FR7 — no source → null (2); extension-based rendering img/video/audio/download (5); alt prop (1); file wins over src (1); blob URL cleanup on unmount (1) |
-| **Backend Total** | | **144** | Confirmed: `mvn test` BUILD SUCCESS |
-| **Frontend Total** | | **116** | Confirmed: `npm test` 116 passed, 0 failed |
-| **Grand Total** | | **260** | |
+| `FilterSearch.test.js` | Frontend | 2 | FR9 — FilterSearch component render and search submission |
+| **Backend Total** | | **156** | Confirmed: `mvn test` BUILD SUCCESS |
+| **Frontend Total** | | **119** | Confirmed: `npm test` 119 passed, 0 failed |
+| **Grand Total** | | **275** | |
 
-> **⚠️ Floor:** 144 backend / 116 frontend / 260 total — this count must never decrease. Run both `mvn test` and `npm test` before any merge.
+> **⚠️ Floor:** 156 backend / 119 frontend / 275 total — this count must never decrease. Run both `mvn test` and `npm test` before any merge.
 
 ---
 
@@ -443,7 +445,7 @@ The import is already present. This TODO item has been resolved and should be re
 | FR6 | Visualize Map | **Complete** | (map tiles served by OpenStreetMap externally) | `MapView.jsx`, `mapService.js`, `App.js` | `App.test.js` (1) |
 | FR7 | Upload Media | **Complete** (May 2026) | `MediaController` (IMPL — 3 endpoints), `MediaService` (IMPL — upload/read/delete, UUID filenames, NFR4 path-traversal), `IMediaController` (IMPL), `Pin.mediaUrl` (stores relative URL) | `mediaService.js` (fetch wrappers), `MediaPreview.jsx` (rendering), `PinForm.jsx` (file input + preview), `EditPinForm.jsx` (replace/remove flow), `App.js` (chained upload + handleRemoveMedia), `MapView.jsx` (thumbnail in popup) | `MediaServiceTest.java` (23), `MediaControllerTest.java` (14), `PinForm.test.js` (+3), `EditPinForm.test.js` (+6), `mediaService.test.js` (9), `MediaPreview.test.jsx` (10) |
 | FR8 | Calculate Distances | **Fully Complete** | `DistanceCalculator.java` (IMPL), `DistanceResult.java` (IMPL), `MapAPIClient.java` (IMPL — all 3 modes), `MapController.java` (IMPL — 3 endpoints, 12 tests) | `mapDistanceService.js` (fetch wrapper), `DistancePanel.jsx` (result panel, 17 tests), `MapView.jsx` (Measure button, 8 new tests), `TripList.jsx` (trip distance in sidebar), `App.js` (measure flow + tripDistances useEffect, 10 new tests) | `DistanceCalculatorTest.java` (22), `DistanceResultTest.java` (14), `MapAPIClientTest.java` (19), `MapControllerTest.java` (12), `DistancePanel.test.jsx` (17), `MapView.test.js` (+8), `App.test.js` (+10) |
-| FR9 | Filter and Search | **Not Started** | `SearchController.handleFilterSearch()` (stub), `PinRepository.findByLocationNameContainingIgnoreCase()` (IMPLEMENTED) | (not started) | none |
+| FR9 | Filter and Search | ⚠️ **Implemented but NFR4 violation (Bug 4) — search returns pins from all users** | `SearchController.search()`, `PinRepository.findByLocationNameContainingIgnoreCase()` | `FilterSearch.jsx` (Gage), `FilterSearch.test.js` | `SearchControllerTest.java` |
 | FR10 | View Timeline | **Not Started** | `TripController.handleViewTimeline()` (stub) | (not started) | none |
 | FR11 | Set Pin Privacy | **In Progress** | `PinController.setPinPrivacy()`, `PinService.setPinPrivacy()`, `Privacy` enum | (UI for privacy not yet wired in React) | `PinServiceTest.java` (2), `PinControllerTest.java` (2) |
 | FR12 | Generate Share Link | **Not Started** | `SharingController.handleGenerateShareLink()` (stub) | (not started) | none |
@@ -455,7 +457,7 @@ The import is already present. This TODO item has been resolved and should be re
 
 > **FR8 user-facing behavior:** Pin-to-pin: user clicks Measure on pin A (DistancePanel appears in waiting state), then Measure on pin B — panel updates to show "Pin A to Pin B" with km and mi equally styled side-by-side. Clicking the same pin twice or pressing Cancel clears all measuring state. Trip total: sidebar automatically shows km / mi under each trip's pin list, re-fetching whenever trips or pins change; pins with null coordinates are skipped and the count is reported. Accumulated total across all trips: endpoint implemented but ownerId verification is pending Wilson's auth merge.
 
-> **FR4/FR15 note:** Pins are returned for ALL users currently (no owner filtering). Full FR4 compliance requires Wilson's auth merge to filter by `ownerId`.
+> **FR4/FR15 note:** Pin owner filtering is now implemented — `GET /api/pins` returns only the authenticated user's pins; `POST /api/pins` stamps `ownerId` on create (Bug 2 fixed May 6 2026, verified end-to-end). Trip owner filtering is still pending — `TripController.getAllTrips()` returns all trips regardless of owner (Bug 3, same shape as Bug 2). Full NFR4 compliance for trips requires Gage's trip layer to stamp and filter `ownerId`.
 
 ---
 
@@ -507,9 +509,9 @@ The import is already present. This TODO item has been resolved and should be re
 - Pins and trips may only be edited by their owner or those with edit permissions
 - User accounts shall be protected with a username and password
 
-**Current compliance:** Not compliant. `PinService.getAllPins()` returns all pins for all users. No authentication exists. No owner enforcement on create/edit/delete/privacy.
+**Current compliance:** Partial. Pin owner filtering is implemented: `createPin` stamps `ownerId`, `getAllPins` filters by `ownerId`, frontend clears data on logout and refetches on login (Bug 2 fixed May 6 2026 — verified with multi-user scenario). No backend authentication exists yet (Wilson's task). No owner enforcement on `updatePin()`, `deletePin()`, `setPinPrivacy()`. Trip owner filtering is not implemented — `TripController.getAllTrips()` returns all trips regardless of owner; `Trip.ownerId` is not stamped on create (Bug 3, discovered May 6 during Bug 2 verification). Search results are also unfiltered — `SearchController.search()` returns pins from all users matching the keyword regardless of authenticated user (Bug 4, discovered May 6 during post-merge verification of Gage's PR #11).
 
-**Remaining work:** Wilson's auth merge is the blocker. After merge: add `ownerId` to `Pin`, filter by owner in `getAllPins()`, enforce owner check in `updatePin()`, `deletePin()`, `setPinPrivacy()`.
+**Remaining work:** Wilson's auth merge remains the primary blocker for full NFR4 compliance. After merge: enforce owner check in `updatePin()`, `deletePin()`, `setPinPrivacy()`. Gage needs to implement trip ownerId stamping and filtering to close Bug 3.
 
 ---
 
@@ -563,11 +565,25 @@ The import is already present. This TODO item has been resolved and should be re
 - [ ] Implement `UserRepositoryImpl.findByUsername()`, `save()`, `update()`
 - [ ] Add `@Entity` and JPA annotations to `User.java`; add getters/setters
 - [ ] Create DTOs for login/registration requests and responses
-- [ ] **After merge: Add `ownerId` (Long) field to `Pin.java`**
-- [ ] **After merge: Add `findByOwnerId(Long ownerId)` to `PinRepository`**
-- [ ] **After merge: Update `PinService.getAllPins()` to accept `userId` and filter by owner**
-- [ ] **After merge: Update `PinController.getAllPins()` to extract authenticated user and pass id to service**
+- [x] ~~**After merge: Add `ownerId` (String) field to `Pin.java`**~~ — already present, completed earlier
+- [x] ~~**After merge: Add `findByOwnerId(String ownerId)` to `PinRepository`**~~ — completed in FR8 phase
+- [x] ~~**After merge: Update `PinService.getAllPins()` to filter by owner**~~ — completed May 6 2026 (Bug 2 fix)
+- [x] ~~**After merge: Update `PinController.getAllPins()` to extract authenticated user and pass to service**~~ — completed May 6 2026 (Bug 2 fix)
 - [ ] **After merge: Add owner verification to `PinService.updatePin()`, `deletePin()`, `setPinPrivacy()`**
+
+### Known Bugs
+
+**Bug 3 (Critical — NFR4) — Trip owner filtering missing**
+`TripController.getAllTrips()` returns ALL trips regardless of who is logged in; `Trip.ownerId` is not stamped on create. This is the same shape as Bug 2 (now fixed for pins). Discovered May 6 2026 during Bug 2 end-to-end verification.
+- **Owner:** Gage (TripController / TripService) — or Charlie as follow-up if Gage's trips branch is delayed
+- **Fix pattern:** Same as Bug 2 — stamp `ownerId` in `createTrip`, filter in `getAllTrips(ownerId)`, inject `AccountFacade` into `TripController`, refetch on login / clear on logout in `App.js`
+- **Blocks:** NFR4 compliance for trips; affects any multi-user demo
+
+**Bug 4 (Critical — NFR4) — Search results unfiltered by owner**
+`SearchController.search()` calls `pinRepository.findByLocationNameContainingIgnoreCase()` directly with no owner filter. Pins from all users matching the search term are returned regardless of authenticated user. Discovered May 6 during post-merge manual verification. Same fix shape as Bug 2: inject `AccountFacade`, filter results by current user's `ownerId` before returning. Owner: Gage. Blocks NFR4 for FR9 search.
+- **Owner:** Gage (SearchController)
+- **Fix pattern:** Same as Bug 2 — inject `AccountFacade`, get current user, filter `findByLocationNameContainingIgnoreCase()` results by `ownerId`
+- **Blocks:** NFR4 compliance for search; affects any multi-user demo
 
 ### Gage's TODOs (trips merge impacts)
 - [ ] Add `@Entity` and JPA annotations to `Trip.java`; add getters/setters
@@ -575,6 +591,7 @@ The import is already present. This TODO item has been resolved and should be re
 - [ ] Create `TripService.java` in `travelmap.service` package
 - [ ] Implement `TripController.handleOrganizeTrip()`, `handleViewTimeline()`, `handleSetTripPrivacy()`
 - [ ] Define proper REST endpoints in `TripController` (currently methods return void with no HTTP mapping)
+- [ ] **Bug 3: Stamp `ownerId` in `createTrip`, filter `getAllTrips` by `ownerId` (NFR4 — same pattern as Bug 2 fix for pins)**
 - [ ] **After merge: Add `tripId` (Long) foreign key to `Pin.java`**
 - [ ] **After merge: Add `findByTripId(Long tripId)` to `PinRepository`**
 - [ ] Implement FR5 (Organize Trip), FR10 (View Timeline)
@@ -611,7 +628,7 @@ The import is already present. This TODO item has been resolved and should be re
 | NFR2 | Any user input response | ≤ 2.5 seconds |
 
 ### Test Count Floor
-- **Backend: 144** | **Frontend: 116** | **Total: 260**
+- **Backend: 156** | **Frontend: 119** | **Total: 275**
 - **This number must never decrease.** Every increment must run both `mvn test` and `npm test` before being declared complete.
 - Every new REST endpoint requires a corresponding JUnit test in `PinControllerTest.java` (or a new test file).
 - Every new public service method requires a corresponding unit test in the relevant test file.
@@ -636,7 +653,7 @@ The import is already present. This TODO item has been resolved and should be re
 
 2. **Read `CLAUDE.md` before writing any code.** It is the authoritative description of the current implementation state. This Master Context Document supplements it — both must be read.
 
-3. **Never reduce the passing test count below 144 (backend) / 116 (frontend) / 260 (total).** Run `mvn test` AND `npm test` and confirm both pass before declaring any increment complete.
+3. **Never reduce the passing test count below 156 (backend) / 119 (frontend) / 275 (total).** Run `mvn test` AND `npm test` and confirm both pass before declaring any increment complete.
 
 4. **Never move a class to a different package without explicit instruction.** In particular, do not move `PinService.java` to `travelmap.service` unless the user explicitly requests it, even though CLAUDE.md marks it as a TODO.
 
@@ -654,7 +671,7 @@ The import is already present. This TODO item has been resolved and should be re
 
 11. **Before modifying `Pin.java` or `User.java`, confirm with the assigned teammate.** These are shared model classes. Changes to `Pin.java` affect Charlie's entire pin layer. Changes to `User.java` affect Wilson's auth layer.
 
-12. **`PinService.getAllPins()` must filter by `ownerId` after Wilson's auth merge — do not implement this without that merge.** The method signature and body must change together with Wilson's `ownerId` field addition to `Pin.java` and `findByOwnerId()` addition to `PinRepository`.
+12. **`PinService.getAllPins(ownerId)` now filters by `ownerId` (implemented May 6 2026).** `PinController.getAllPins()` extracts the authenticated user from `AccountFacade.getCurrentUser()` and passes the username. The same owner-enforcement pattern needs to be applied to `updatePin()`, `deletePin()`, and `setPinPrivacy()` after Wilson's auth merge can verify owner identity on those operations.
 
 13. **Mark any deviation from this document as a `// TODO` comment in the relevant file,** with the reason for the deviation and which agent session made it.
 
@@ -680,6 +697,8 @@ The import is already present. This TODO item has been resolved and should be re
 
 | Date | Author | Change |
 |---|---|---|
+| 2026-05-06 | Charlie | Dev merged into `feature/pin-owner-filtering` to integrate Gage's PR #11 (SearchController + FilterSearch + TripServiceTest + SearchControllerTest). Auto-merge resolved cleanly. Tests post-merge: backend 156 (+5 Gage), frontend 119 (+2 Gage), total 275. New floor: 275. Bug 4 discovered during verification: SearchController returns pins across users by location keyword. Deferred (Gage's domain). Bug 2 fix verified intact through merge — Charlie/Wilson scenario still passes. |
+| 2026-05-06 | Charlie | Bug 2 closed: pin owner filtering implemented across backend (`PinController` + `PinService` + `ownerId` stamp on `createPin` + `getAllPins` filter by owner, `AccountFacade` injected, +7 backend tests: 144→151) and frontend (`App.js` `useEffect([isLoggedIn])` refactor replaces two mount-only effects, `handleLogout` clears all session state, +1 frontend test: 116→117). New floors: 151 / 117 / 268. Verified end-to-end: charlie sees only Austin, wilson sees only Island, no cross-user leakage. Bug 3 discovered: trips leak across users with same pattern — `TripController.getAllTrips()` returns all trips, `Trip.ownerId` not stamped. Branch: `feature/pin-owner-filtering`. |
 | 2026-05-05 | Charlie | FR7 Media Upload complete — backend + frontend. Backend: `IMediaController` (3-method contract), `MediaService` (23 tests — FR7 + NFR4 path traversal), `MediaController` (14 tests — FR7 HTTP layer + NFR3/NFR4 status mapping), `application.properties` multipart config. Frontend: `mediaService.js` (9 tests), `MediaPreview.jsx` (10 tests), `PinForm.jsx` (+3 tests), `EditPinForm.jsx` (+6 tests), `App.js` chained upload + handleRemoveMedia, `MapView.jsx` media thumbnail, `setupTests.js` JSDOM mocks. New floors: 144 backend / 116 frontend / 260 total. Branch: `feature/media-controller`. 22 commits, ready for PR. |
 | 2026-04-26 | Charlie | FR8 frontend complete: `mapDistanceService.js`, `DistancePanel.jsx` (17 tests), `MapView.jsx` Measure button (8 new tests), `TripList.jsx` trip distance display, `App.js` wiring (10 new tests). Frontend floor: 88. Total floor: 195. All commits on `feature/map-controller` pushed, PR to dev pending. `feature/map-distance-ui` branch not needed — frontend implemented on this branch directly. Next: FR7 and FR6 after merge. |
 | 2026-04-08 | Master Context Generator | Initial document created from live code audit. Verified 34 tests (not 36 as CLAUDE.md claims). Confirmed `PinControllerTest` import already fixed. Noted MapView uses `pin.latitude`/`pin.longitude` (not `pin.lat`/`pin.lng`). |
