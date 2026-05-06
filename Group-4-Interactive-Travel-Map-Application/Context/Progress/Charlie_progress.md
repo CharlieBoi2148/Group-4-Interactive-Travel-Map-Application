@@ -1,6 +1,6 @@
 # Charlie Burbury — Progress Log
-**Branch:** `feature/map-and-pins` → `feature/map-controller` → `feature/media-controller`
-**Role:** Map View, Pin CRUD, Backend pin layer, FR8 Distance layer, FR7 Media Upload
+**Branch:** `feature/map-and-pins` → `feature/map-controller` → `feature/media-controller` → `feature/pin-owner-filtering`
+**Role:** Map View, Pin CRUD, Backend pin layer, FR8 Distance layer, FR7 Media Upload, NFR4 Pin Owner Filtering
 
 ---
 
@@ -106,6 +106,48 @@ Key commits:
 6. (frontend) Create mediaService.js, MediaPreview.jsx, wire PinForm, EditPinForm, App.js, MapView.jsx
 7. (frontend) Add 28 new tests: PinForm +3, EditPinForm +6, mediaService.test.js (9), MediaPreview.test.jsx (10)
 
+---
+
+## Phase 4 — Bug 2 Fix: Pin Owner Filtering (NFR4) [COMPLETE]
+
+### Completed (2026-05-06)
+
+**Backend:**
+- [x] `PinService.java` — `createPin(pin, ownerId)`: validates and stamps `ownerId` before save. `getAllPins(ownerId)`: validates then delegates to `findByOwnerId`. Both throw IAE on null/blank ownerId.
+- [x] `PinController.java` — injects `AccountFacade` via constructor. `createPin` and `getAllPins` both null-guard `AccountFacade.getCurrentUser()` → 401 if not logged in; pass `currentUser.getUsername()` to service.
+- [x] `PinServiceTest.java` — 15 → 20 tests (+2 createPin ownerId validation, +3 getAllPins: isolation, ownerId null, ownerId blank). All `createPin` call sites updated to two-arg signature.
+- [x] `PinControllerTest.java` — 10 → 12 tests. Added `@MockBean AccountFacade`, `mockUser` setup in `@BeforeEach`. Updated `createPin` and `getAllPins` stubs to new signatures. Added `createPin_returns401_whenNotLoggedIn` and `getAllPins_returns401_whenNotLoggedIn`.
+
+**Frontend:**
+- [x] `App.js` — replaced two separate mount-only `useEffect([], [])` with one `useEffect([isLoggedIn])`: clears `pins`, `trips`, `tripDistances` on logout; fetches both on login. `handleLogout` expanded to also clear `form`, `editPin`, `confirmDelete`, `measuringFrom`, `measuredTo`, `distanceResult`, `distanceError`, `showTripForm`, `tripSaveError`, `tripPrivacyError`.
+- [x] `App.test.js` — 24 → 25 tests. Added `logout clears pins from local state` (NFR4).
+
+**Verification (8-step manual test):**
+1. App opens at LoginForm — no 401 in DevTools
+2. Register charlie, login — empty map; backend SQL logs `owner_id=charlie`
+3. Create "Austin" — backend logs `owner_id=charlie`
+4. Logout — LoginForm reappears, pins cleared
+5. Register wilson, login — empty map (Austin not visible)
+6. Create "Island" — backend logs `owner_id=wilson`
+7. Logout, login as charlie — only Austin visible
+8. Logout, login as wilson — only Island visible — all 8 steps passed
+
+**Bug 3 discovered during step 8:** trips leak across users — `TripController.getAllTrips()` returns all trips; `Trip.ownerId` not stamped on create. Deferred (Gage's TripController).
+
+### Branch: feature/pin-owner-filtering — 4 files staged, awaiting commit
+
+Files changed:
+- `PinService.java` (backend)
+- `PinController.java` (backend)
+- `PinServiceTest.java` (backend)
+- `PinControllerTest.java` (backend)
+- `App.js` (frontend)
+- `App.test.js` (frontend)
+
+Test delta: 144 → 151 backend, 116 → 117 frontend, 260 → 268 total
+
+---
+
 ## Known Tech Debt (deferred to final sprint)
 - `MapAPIClient.java` annotated `@Component` — should be `@Service` per Spring convention
 - `MapController.java` has `@CrossOrigin` — replace with CORS config class before production
@@ -113,16 +155,21 @@ Key commits:
 - `MediaService.java` in `travelmap.media` — should move to `travelmap.service` in same pass as PinService (May 2026)
 - **Orphan file cleanup:** `PinService.deletePin()` does not call `MediaService.deleteMedia()` — deleting a pin with media leaves the file on disk. Easy follow-up if time allows before May 12 demo.
 - **Multi-media per pin:** `Pin.mediaUrl` is a single `String`. FR7 SRS allows multiple files per pin. Upgrade to `@OneToMany Media` entity if time permits — not blocking for demo.
+- **Bug 3 — Trip owner filtering:** `TripController.getAllTrips()` returns all trips regardless of owner; `Trip.ownerId` not stamped on create. Fix pattern identical to Bug 2 (now closed). Owner: Gage or Charlie follow-up before May 12 demo.
+
+## Known Bugs (open)
+
+- **Bug 3 — Trip owner filtering:** `TripController.getAllTrips()` returns all trips regardless of owner; `Trip.ownerId` not stamped on create. Discovered May 6 2026 during Bug 2 verification. Fix pattern identical to Bug 2. Owner: Gage (TripController / TripService). Blocks NFR4 for trips.
 
 ## Blocked On (waiting for teammates)
-- Edit/delete/privacy owner enforcement → blocked on Wilson's auth merge
-- `PinRepository.findByOwnerId()` already added — blocked on Wilson adding `ownerId` to `Pin.java` itself
+- Edit/delete/privacy owner enforcement → blocked on Wilson's auth merge (createPin and getAllPins now fixed — Bug 2 closed)
+- ~~`PinRepository.findByOwnerId()` already added — blocked on Wilson adding `ownerId` to `Pin.java` itself~~ — resolved: `ownerId` was already present; `findByOwnerId` implemented; filtering now live
 - Media deletion in `PinService.deletePin()` → MediaController and MediaService are now implemented; the call to `MediaService.deleteMedia()` inside `PinService.deletePin()` is tech debt, not a blocker
 - `MapAPIClient.getTotalDistance()` — ownerId verification blocked on Wilson's AuthController merge (NFR4)
 
 ---
 
-### Current Test Count: 144 (backend) / 116 (frontend) / 260 (total)
+### Current Test Count: 151 (backend) / 117 (frontend) / 268 (total)
 
 ---
 
@@ -130,6 +177,7 @@ Key commits:
 
 | Date | Change |
 |---|---|
+| 2026-05-06 | Bug 2 closed (NFR4 pin owner filtering). Backend: PinController + PinService refactored, AccountFacade injected, 401 guard added. PinServiceTest (15→20), PinControllerTest (10→12). Frontend: App.js useEffect([isLoggedIn]) refactor, handleLogout expanded, App.test.js (24→25). Test floor: 144/116/260 → 151/117/268. Verified 8-step multi-user scenario. Bug 3 discovered: trip owner leakage. Branch: feature/pin-owner-filtering. |
 | 2026-04-08 | Phase 1 complete. All 34 tests passing. Master Context Document generated. |
 | 2026-04-08 | Renamed `package.json` name field from `leaflet-test` to `travel-map` |
 | 2026-04-13 | FR3 Delete Pin UI complete. FR2 Edit Pin UI complete. Added MapView.test.js (6), updated App.test.js (5). Total: 44 tests. |
