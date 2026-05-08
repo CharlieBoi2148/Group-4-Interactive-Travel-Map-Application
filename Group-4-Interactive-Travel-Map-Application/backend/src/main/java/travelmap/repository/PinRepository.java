@@ -1,6 +1,7 @@
 package travelmap.repository;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -94,6 +95,10 @@ public interface PinRepository extends JpaRepository<Pin, Long> {
      * @return list of pins whose location name contains the keyword
      */
     List<Pin> findByLocationNameContainingIgnoreCase(String keyword);
+
+    List<Pin> findByTripIdIn(Set<Long> tripIds);
+
+    List<Pin> findByTripIdInAndLocationNameContainingIgnoreCase(Set<Long> tripIds, String keyword);
 
     /**
      * NFR4, FR4 — Find all pins owned by a specific user.

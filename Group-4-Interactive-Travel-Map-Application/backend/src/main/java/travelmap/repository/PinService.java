@@ -1,6 +1,7 @@
 package travelmap.repository;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -139,6 +140,16 @@ public class PinService {
             return pinRepository.findAll();
         }
         return pinRepository.findByLocationNameContainingIgnoreCase(keyword.trim());
+    }
+
+    public List<Pin> searchPinsByTripIds(String keyword, Set<Long> tripIds) {
+        if (tripIds == null || tripIds.isEmpty()) {
+            return List.of();
+        }
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return pinRepository.findByTripIdIn(tripIds);
+        }
+        return pinRepository.findByTripIdInAndLocationNameContainingIgnoreCase(tripIds, keyword.trim());
     }
 
     /**

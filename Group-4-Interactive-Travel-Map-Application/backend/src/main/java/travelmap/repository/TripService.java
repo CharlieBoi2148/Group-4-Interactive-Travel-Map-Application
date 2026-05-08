@@ -54,6 +54,13 @@ public class TripService {
         return tripRepository.findAll();
     }
 
+    public List<Trip> getTripsForOwner(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            return List.of();
+        }
+        return tripRepository.findByOwnerId(ownerId);
+    }
+
     /**
      * Retrieve a trip by id.
      *
@@ -95,6 +102,12 @@ public class TripService {
         });
     }
 
+    public Optional<Trip> updateTripForOwner(Long id, Trip updates, String ownerId) {
+        return tripRepository.findById(id)
+                .filter(trip -> ownerId != null && ownerId.equals(trip.getOwnerId()))
+                .flatMap(trip -> updateTrip(id, updates));
+    }
+
     /**
      * Retrieve timeline-ordered trips for an owner.
      *
@@ -121,6 +134,12 @@ public class TripService {
             trip.setPrivacyLevel(privacyLevel);
             return tripRepository.save(trip);
         });
+    }
+
+    public Optional<Trip> setTripPrivacyForOwner(Long id, Privacy privacyLevel, String ownerId) {
+        return tripRepository.findById(id)
+                .filter(trip -> ownerId != null && ownerId.equals(trip.getOwnerId()))
+                .flatMap(trip -> setTripPrivacy(id, privacyLevel));
     }
 
     /**

@@ -2,6 +2,7 @@ package travelmap.controller;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +16,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import travelmap.account.AccountFacade;
 import travelmap.interfaces.ITripController;
 import travelmap.model.Privacy;
 import travelmap.model.Trip;
+import travelmap.model.User;
 import travelmap.repository.TripService;
 
 /**
@@ -48,12 +51,24 @@ import travelmap.repository.TripService;
 public class TripController implements ITripController {
 
     private final TripService tripService;
+    private final AccountFacade accountFacade;
 
     /**
      * @param tripService trip business layer (constructor injection)
      */
-    public TripController(TripService tripService) {
+    @Autowired
+    public TripController(TripService tripService, AccountFacade accountFacade) {
         this.tripService = tripService;
+        this.accountFacade = accountFacade;
+    }
+
+    private String resolveOwnerId() {
+        User user = accountFacade.getCurrentUser();
+        if (user == null) return null;
+        String userId = user.getUserId();
+        if (userId != null && !userId.isBlank()) return userId;
+        String username = user.getUsername();
+        return (username != null && !username.isBlank()) ? username : null;
     }
 
     /**
@@ -70,6 +85,9 @@ public class TripController implements ITripController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Trip> createTrip(@RequestBody Trip trip) {
         try {
+            String ownerId = resolveOwnerId();
+            if (ownerId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            trip.setOwnerId(ownerId);
             Trip saved = tripService.createTrip(trip);
             return ResponseEntity.status(HttpStatus.CREATED).body(saved);
         } catch (IllegalArgumentException ex) {
@@ -88,7 +106,9 @@ public class TripController implements ITripController {
     @Override
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<Trip>> getAllTrips() {
-        return ResponseEntity.ok(tripService.getAllTrips());
+        String ownerId = resolveOwnerId();
+        if (ownerId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return ResponseEntity.ok(tripService.getTripsForOwner(ownerId));
     }
 
     /**
@@ -103,7 +123,9 @@ public class TripController implements ITripController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Trip> updateTrip(@PathVariable Long id, @RequestBody Trip trip) {
         try {
-            return tripService.updateTrip(id, trip)
+            String ownerId = resolveOwnerId();
+            if (ownerId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            return tripService.updateTripForOwner(id, trip, ownerId)
                     .map(ResponseEntity::ok)
                     .orElseGet(() -> ResponseEntity.notFound().build());
         } catch (IllegalArgumentException ex) {
@@ -124,7 +146,9 @@ public class TripController implements ITripController {
     @PatchMapping(value = "/{id}/privacy", consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Trip> setTripPrivacy(@PathVariable Long id, @RequestBody Privacy privacyLevel) {
-        return tripService.setTripPrivacy(id, privacyLevel)
+        String ownerId = resolveOwnerId();
+        if (ownerId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return tripService.setTripPrivacyForOwner(id, privacyLevel, ownerId)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
