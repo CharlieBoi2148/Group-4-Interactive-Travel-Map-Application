@@ -59,7 +59,7 @@ public class SearchController implements ISearchController {
         tripService.getTripsForOwner(ownerId).forEach(trip -> {
             if (trip.getId() != null) ownerTripIds.add(trip.getId());
         });
-        return ResponseEntity.ok(pinService.searchPinsByTripIds(keyword, ownerTripIds));
+        return ResponseEntity.ok(pinService.searchPinsByTripIds(keyword, ownerTripIds, ownerId));
     }
 
     public void handleFilterSearch(Object criteria) {}

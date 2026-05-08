@@ -55,7 +55,7 @@ class SearchControllerTest {
     void searchPins_noKeyword_returns200AndArray() throws Exception {
         when(accountFacade.getCurrentUser()).thenReturn(signedInUser());
         when(tripService.getTripsForOwner("user-1")).thenReturn(List.of(ownerTrip(1L)));
-        when(pinService.searchPinsByTripIds(null, Set.of(1L))).thenReturn(List.of());
+        when(pinService.searchPinsByTripIds(null, Set.of(1L), "user-1")).thenReturn(List.of());
 
         mockMvc.perform(get("/api/search"))
                 .andExpect(status().isOk())
@@ -73,7 +73,7 @@ class SearchControllerTest {
 
         when(accountFacade.getCurrentUser()).thenReturn(signedInUser());
         when(tripService.getTripsForOwner("user-1")).thenReturn(List.of(ownerTrip(1L)));
-        when(pinService.searchPinsByTripIds("eiffel", Set.of(1L))).thenReturn(List.of(p));
+        when(pinService.searchPinsByTripIds("eiffel", Set.of(1L), "user-1")).thenReturn(List.of(p));
 
         mockMvc.perform(get("/api/search").param("keyword", "eiffel"))
                 .andExpect(status().isOk())
@@ -85,7 +85,7 @@ class SearchControllerTest {
     void searchPins_blankKeywordParam_returns200AndArray() throws Exception {
         when(accountFacade.getCurrentUser()).thenReturn(signedInUser());
         when(tripService.getTripsForOwner("user-1")).thenReturn(List.of(ownerTrip(1L)));
-        when(pinService.searchPinsByTripIds("   ", Set.of(1L))).thenReturn(List.of());
+        when(pinService.searchPinsByTripIds("   ", Set.of(1L), "user-1")).thenReturn(List.of());
 
         mockMvc.perform(get("/api/search").param("keyword", "   "))
                 .andExpect(status().isOk())

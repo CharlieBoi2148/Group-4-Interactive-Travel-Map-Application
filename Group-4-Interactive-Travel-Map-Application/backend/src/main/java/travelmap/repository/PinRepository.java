@@ -100,6 +100,10 @@ public interface PinRepository extends JpaRepository<Pin, Long> {
 
     List<Pin> findByTripIdInAndLocationNameContainingIgnoreCase(Set<Long> tripIds, String keyword);
 
+    List<Pin> findByOwnerIdAndTripIdIsNull(String ownerId);
+
+    List<Pin> findByOwnerIdAndTripIdIsNullAndLocationNameContainingIgnoreCase(String ownerId, String keyword);
+
     /**
      * NFR4, FR4 — Find all pins owned by a specific user.
      *

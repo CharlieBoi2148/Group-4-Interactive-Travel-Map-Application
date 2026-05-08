@@ -152,6 +152,32 @@ public class PinService {
         return pinRepository.findByTripIdInAndLocationNameContainingIgnoreCase(tripIds, keyword.trim());
     }
 
+    public List<Pin> searchPinsByTripIds(String keyword, Set<Long> tripIds, String ownerId) {
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            return List.of();
+        }
+        String trimmed = keyword == null ? null : keyword.trim();
+        boolean hasKeyword = trimmed != null && !trimmed.isEmpty();
+
+        List<Pin> tripPins = (tripIds == null || tripIds.isEmpty())
+                ? List.of()
+                : (hasKeyword
+                        ? pinRepository.findByTripIdInAndLocationNameContainingIgnoreCase(tripIds, trimmed)
+                        : pinRepository.findByTripIdIn(tripIds));
+
+        List<Pin> unassignedPins = hasKeyword
+                ? pinRepository.findByOwnerIdAndTripIdIsNullAndLocationNameContainingIgnoreCase(ownerId, trimmed)
+                : pinRepository.findByOwnerIdAndTripIdIsNull(ownerId);
+
+        if (tripPins.isEmpty()) return unassignedPins;
+        if (unassignedPins.isEmpty()) return tripPins;
+
+        java.util.LinkedHashMap<Long, Pin> dedup = new java.util.LinkedHashMap<>();
+        tripPins.forEach(pin -> dedup.put(pin.getId(), pin));
+        unassignedPins.forEach(pin -> dedup.put(pin.getId(), pin));
+        return List.copyOf(dedup.values());
+    }
+
     /**
      * FR2 — Update an existing pin's fields.
      *
