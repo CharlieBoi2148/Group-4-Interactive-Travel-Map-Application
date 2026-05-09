@@ -118,7 +118,7 @@ public class PinService {
         pin.setOwnerId(ownerId);
 
         return pinRepository.save(pin);
-
+    }
     /**
      * FR4 — Retrieve all pins belonging to the authenticated user.
      *
