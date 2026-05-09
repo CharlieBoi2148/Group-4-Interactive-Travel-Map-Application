@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import EditPinForm from './components/EditPinForm';
+import { NO_TRIP_ASSIGNMENT } from './services/pinService';
 
 const mockPin = {
   id: 1,
@@ -64,6 +65,7 @@ test('FR2 — valid save delegates correct fields to onSave', () => {
     region: 'Île-de-France',
     visitDate: '2024-06-01',
     notes: 'Amazing view',
+    tripId: NO_TRIP_ASSIGNMENT,
     mediaFile: null,
   });
 });
@@ -88,6 +90,7 @@ test('FR2 — valid save with all fields edited calls onSave with new values', (
     region: 'Paris',
     visitDate: '2024-06-01',
     notes: 'Great art',
+    tripId: NO_TRIP_ASSIGNMENT,
     mediaFile: null,
   });
 });
@@ -283,6 +286,7 @@ test('FR7 — save with picked file includes mediaFile in onSave payload', () =>
     region: 'Île-de-France',
     visitDate: '2024-06-01',
     notes: 'Amazing view',
+    tripId: NO_TRIP_ASSIGNMENT,
     mediaFile: file,
   });
 });

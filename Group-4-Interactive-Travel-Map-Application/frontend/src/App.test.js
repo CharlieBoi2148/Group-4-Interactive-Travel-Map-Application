@@ -42,6 +42,7 @@ jest.mock('./services/mapService', () => {});
 // strips jest.fn() implementations between tests.
 jest.mock('./services/pinService', () => ({
   __esModule: true,
+  NO_TRIP_ASSIGNMENT: -1,
   getPins: jest.fn(),
   createPin: jest.fn(),
   deletePin: jest.fn(),
@@ -212,6 +213,7 @@ test('FR2 — saving calls updatePin with the correct id and fields', async () =
       region: '',
       visitDate: '2024-06-01',
       notes: '',
+      tripId: -1,
     })
   );
 });

@@ -13,6 +13,7 @@
 import { useState } from 'react';
 import MediaPreview from './MediaPreview';
 import { mediaUrl } from '../services/mediaService';
+import { NO_TRIP_ASSIGNMENT } from '../services/pinService';
 
 const PRIVACY_OPTIONS = [
   { value: 'PRIVATE', label: 'Private' },
@@ -20,7 +21,7 @@ const PRIVACY_OPTIONS = [
   { value: 'PUBLIC', label: 'Public' },
 ];
 
-export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange, onRemoveMedia }) {
+export default function EditPinForm({ pin, trips = [], onSave, onCancel, onPrivacyChange, onRemoveMedia }) {
 
   // Pre-fill controlled inputs with existing pin data
   const [locationName, setLocationName] = useState(pin.locationName || '');
@@ -28,14 +29,22 @@ export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange, on
   const [region, setRegion] = useState(pin.region || '');
   const [visitDate, setVisitDate] = useState(pin.visitDate || '');
   const [notes, setNotes] = useState(pin.notes || '');
+  const [tripId, setTripId] = useState(pin.tripId != null ? String(pin.tripId) : '');
   const [privacyLevel, setPrivacyLevel] = useState(pin.privacyLevel || 'PRIVATE');
   const [mediaFile, setMediaFile] = useState(null);
 
   const handleSave = () => {
     if (!locationName.trim()) return;
-    // Only pass the fields the user can edit — App.js sends these to updatePin()
-    // Backend PinService applies a partial update, preserving all other fields
-    onSave({ locationName, country, region, visitDate, notes, mediaFile });
+    // Pin-shaped fields for PUT /api/pins/{id} — tripId uses NO_TRIP_ASSIGNMENT to clear (matches Java Pin)
+    onSave({
+      locationName,
+      country,
+      region,
+      visitDate,
+      notes,
+      tripId: tripId === '' ? NO_TRIP_ASSIGNMENT : Number(tripId),
+      mediaFile,
+    });
   };
 
   // FR11 — privacy change is immediate, not bundled with Save
@@ -89,6 +98,21 @@ export default function EditPinForm({ pin, onSave, onCancel, onPrivacyChange, on
         type="date"
         style={inputStyle}
       />
+      <label style={{ display: 'block', marginBottom: '4px', fontSize: '13px', color: '#555' }}>
+        Trip
+      </label>
+      <select
+        value={tripId}
+        onChange={(e) => setTripId(e.target.value)}
+        style={{ width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' }}
+      >
+        <option value="">No trip (unassigned)</option>
+        {trips.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
       <textarea
         value={notes}
         onChange={e => setNotes(e.target.value)}

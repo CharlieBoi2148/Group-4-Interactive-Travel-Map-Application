@@ -221,10 +221,17 @@ if (!isLoggedIn) {
   // FR2 — step 2: User saved changes in EditPinForm.
   // Only sends the fields the user can edit — backend preserves all other fields.
   // Updates the pin in local state so the map reflects changes immediately.
-  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes, mediaFile }) => {
+  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes, tripId, mediaFile }) => {
     if (!editPin) return;
     try {
-      let updated = await updatePin(editPin.id, { locationName, country, region, visitDate, notes });
+      let updated = await updatePin(editPin.id, {
+        locationName,
+        country,
+        region,
+        visitDate,
+        notes,
+        tripId,
+      });
       if (mediaFile) {
         try {
           updated = await uploadMedia(updated.id, mediaFile);
@@ -508,6 +515,7 @@ if (!isLoggedIn) {
               {editPin && (
                 <EditPinForm
                   pin={editPin}
+                  trips={trips}
                   onSave={handleUpdatePin}
                   onCancel={handleCancelEdit}
                   onPrivacyChange={handlePrivacyChange}

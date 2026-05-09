@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import travelmap.model.Pin;
 import travelmap.model.Privacy;
+import travelmap.model.Trip;
 
 /**
  * PinService — Service layer (MVC Model).
@@ -49,18 +50,21 @@ import travelmap.model.Privacy;
 public class PinService {
 
     private final PinRepository pinRepository;
+    private final TripRepository tripRepository;
 
     /**
-     * Constructor injection — PinRepository is provided by Spring on startup.
+     * Constructor injection — dependencies are provided by Spring on startup.
      * Using constructor injection instead of @Autowired field injection so
-     * that PinServiceTest can pass a mock repository directly:
-     *   PinService service = new PinService(mockRepository);
+     * that PinServiceTest can pass mocks directly:
+     *   PinService service = new PinService(mockPinRepository, mockTripRepository);
      *
      * @param pinRepository Spring Data JPA repository for Pin persistence
+     * @param tripRepository used to load trips when assigning a pin (validates owner against pin)
      */
     @Autowired
-    public PinService(PinRepository pinRepository) {
+    public PinService(PinRepository pinRepository, TripRepository tripRepository) {
         this.pinRepository = pinRepository;
+        this.tripRepository = tripRepository;
     }
 
     /**
@@ -98,6 +102,11 @@ public class PinService {
         // Default privacy to PRIVATE if not set — NFR4 safe default
         if (pin.getPrivacyLevel() == null) {
             pin.setPrivacyLevel(Privacy.PRIVATE);
+        }
+
+        // FR5 — negative tripId is a partial-update sentinel only; never persist it
+        if (pin.getTripId() != null && pin.getTripId() < 0) {
+            pin.setTripId(null);
         }
 
         return pinRepository.save(pin);
@@ -213,11 +222,37 @@ public class PinService {
         if (pin.getRegion() != null) existing.setRegion(pin.getRegion());
         if (pin.getVisitDate() != null) existing.setVisitDate(pin.getVisitDate());
         if (pin.getNotes() != null) existing.setNotes(pin.getNotes());
-        if (pin.getTripId() != null) existing.setTripId(pin.getTripId());
+        applyTripAssignmentUpdate(existing, pin);
         if (pin.getPrivacyLevel() != null) existing.setPrivacyLevel(pin.getPrivacyLevel());
         if (pin.getMediaUrl() != null) existing.setMediaUrl(pin.getMediaUrl());
 
         return pinRepository.save(existing);
+    }
+
+    /**
+     * FR5 — Apply {@code tripId} from a partial update {@link Pin}.
+     * Omitted or null {@code tripId} leaves the assignment unchanged.
+     * {@link Pin#NO_TRIP_ASSIGNMENT} clears the assignment.
+     */
+    private void applyTripAssignmentUpdate(Pin existing, Pin patch) {
+        Long tid = patch.getTripId();
+        if (tid == null) {
+            return;
+        }
+        if (tid == Pin.NO_TRIP_ASSIGNMENT) {
+            existing.setTripId(null);
+            return;
+        }
+        Trip trip = tripRepository.findById(tid)
+                .orElseThrow(() -> new IllegalArgumentException("Trip not found: " + tid));
+        String pinOwner = existing.getOwnerId();
+        if (pinOwner != null && !pinOwner.isBlank()) {
+            String tripOwner = trip.getOwnerId();
+            if (tripOwner == null || !pinOwner.equals(tripOwner)) {
+                throw new IllegalArgumentException("Trip does not belong to the pin owner");
+            }
+        }
+        existing.setTripId(tid);
     }
 
     /**
