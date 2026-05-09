@@ -77,20 +77,22 @@ public class PinService {
      * privacyLevel defaults to PRIVATE if not provided by the client —
      * safe default per NFR4, users must explicitly make pins public.
      *
+     * NFR4 — stamps the authenticated user's ownerId onto the pin before
+     * saving so that getAllPins() can filter by owner. PinController
+     * extracts the username from AccountFacade.getCurrentUser() and passes
+     * it here. Without this stamp, findByOwnerId() would never return the
+     * pin to its creator.
+     *
      * JPA's save() performs an INSERT since the pin has no id yet.
      * The database assigns the id and JPA returns the saved Pin with it.
      * React uses this id to identify the pin for future edit/delete calls.
      *
-     * TODO (FR1 — media):
-     * Once MediaController is implemented in Week 3, createPin() will need
-     * to handle optional media association. The mediaUrl field on Pin will
-     * be populated by MediaService after the file is uploaded to Cloudinary.
-     *
-     * @param pin Pin object from the HTTP request body
+     * @param pin     Pin object from the HTTP request body
+     * @param ownerId username of the authenticated user creating the pin
      * @return the saved Pin with its database-generated id
-     * @throws IllegalArgumentException if required fields are missing
+     * @throws IllegalArgumentException if required fields are missing or ownerId is blank
      */
-    public Pin createPin(Pin pin) {
+    public Pin createPin(Pin pin, String ownerId) {
         // Validate required fields per FR1 step 2
         if (pin.getLocationName() == null || pin.getLocationName().trim().isEmpty()) {
             throw new IllegalArgumentException("Location name is required");
@@ -104,35 +106,39 @@ public class PinService {
             pin.setPrivacyLevel(Privacy.PRIVATE);
         }
 
-        // FR5 — negative tripId is a partial-update sentinel only; never persist it
+        // FR5 — negative tripId is a sentinel; never persist it on create
         if (pin.getTripId() != null && pin.getTripId() < 0) {
             pin.setTripId(null);
         }
 
+        // NFR4 — stamp owner before persisting so the pin is retrievable by its creator
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Owner ID is required");
+        }
+        pin.setOwnerId(ownerId);
+
         return pinRepository.save(pin);
-    }
 
     /**
-     * FR4 — Retrieve all pins from the database.
+     * FR4 — Retrieve all pins belonging to the authenticated user.
      *
      * Called by PinController on GET /api/pins, which MapView.jsx calls
      * on mount to load all pins onto the map. Returns an empty list if
      * no pins exist — never null, so React can safely call .map() on it.
      *
-     * CRITICAL TODO (coordinate with Wilson — FR4, NFR4):
-     * Currently returns ALL pins in the database regardless of who owns them.
-     * Once Wilson's auth branch merges to dev:
-     *   1. Add ownerId (Long) field to Pin.java
-     *   2. Add findByOwnerId(Long ownerId) to PinRepository
-     *   3. Replace pinRepository.findAll() with:
-     *      pinRepository.findByOwnerId(currentUser.getId())
-     *   4. PinController must pass the authenticated user's id here.
-     * Without this change every user sees every other user's pins.
+     * Implemented May 2026 — filters by authenticated user's ownerId per NFR4.
+     * PinController extracts the username from AccountFacade.getCurrentUser()
+     * and passes it here. Only pins stamped with that ownerId are returned.
      *
-     * @return list of all pins — to be filtered by owner after auth merge
+     * @param ownerId username of the authenticated user
+     * @return list of pins owned by the given user
+     * @throws IllegalArgumentException if ownerId is null or blank
      */
-    public List<Pin> getAllPins() {
-        return pinRepository.findAll();
+    public List<Pin> getAllPins(String ownerId) {
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Owner ID is required");
+        }
+        return pinRepository.findByOwnerId(ownerId);
     }
 
     /**

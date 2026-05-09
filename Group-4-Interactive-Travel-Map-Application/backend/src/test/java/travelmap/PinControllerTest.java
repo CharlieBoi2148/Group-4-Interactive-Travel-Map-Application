@@ -1,8 +1,10 @@
 package travelmap;
 
+import travelmap.account.AccountFacade;
 import travelmap.controller.PinController;
 import travelmap.model.Pin;
 import travelmap.model.Privacy;
+import travelmap.model.User;
 import travelmap.repository.PinService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -64,17 +66,25 @@ class PinControllerTest {
     @MockBean
     private PinService pinService;
 
+    @MockBean
+    private AccountFacade accountFacade;
+
     private ObjectMapper objectMapper;
+    private User mockUser;
 
     /**
      * Runs before each test — sets up ObjectMapper with JavaTimeModule
      * so LocalDate fields serialize correctly to/from JSON.
-     * Without JavaTimeModule, Jackson cannot handle java.time.LocalDate.
+     * Also stubs AccountFacade to return a logged-in user by default.
+     * Tests that need to simulate "not logged in" override this stub inline.
      */
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
+        mockUser = new User();
+        mockUser.setUsername("alice");
+        when(accountFacade.getCurrentUser()).thenReturn(mockUser);
     }
 
     // ── Helper — builds a valid Pin for reuse across tests ───────────────────
@@ -99,7 +109,7 @@ class PinControllerTest {
         // Arrange
         Pin input = buildPin(null, "Eiffel Tower");
         Pin saved = buildPin(1L, "Eiffel Tower");
-        when(pinService.createPin(any(Pin.class))).thenReturn(saved);
+        when(pinService.createPin(any(Pin.class), eq("alice"))).thenReturn(saved);
 
         // Act + Assert
         mockMvc.perform(post("/api/pins")
@@ -116,7 +126,7 @@ class PinControllerTest {
     void createPin_returns400_whenServiceThrowsIllegalArgument() throws Exception {
         // Arrange — simulates missing locationName or coordinates
         Pin input = buildPin(null, null);
-        when(pinService.createPin(any(Pin.class)))
+        when(pinService.createPin(any(Pin.class), eq("alice")))
             .thenThrow(new IllegalArgumentException("Location name is required"));
 
         // Act + Assert
@@ -133,7 +143,7 @@ class PinControllerTest {
         // Arrange
         Pin pin1 = buildPin(1L, "Eiffel Tower");
         Pin pin2 = buildPin(2L, "Colosseum");
-        when(pinService.getAllPins()).thenReturn(List.of(pin1, pin2));
+        when(pinService.getAllPins(eq("alice"))).thenReturn(List.of(pin1, pin2));
 
         // Act + Assert
         mockMvc.perform(get("/api/pins"))
@@ -146,7 +156,7 @@ class PinControllerTest {
     @Test
     void getAllPins_returns200_withEmptyList_whenNoPinsExist() throws Exception {
         // Arrange
-        when(pinService.getAllPins()).thenReturn(List.of());
+        when(pinService.getAllPins(eq("alice"))).thenReturn(List.of());
 
         // Act + Assert — empty array not null, React can safely call .map()
         mockMvc.perform(get("/api/pins"))
@@ -235,5 +245,28 @@ class PinControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("\"PUBLIC\""))
                 .andExpect(status().isNotFound());             // HTTP 404
+    }
+
+    // ── NFR4: 401 when not logged in ─────────────────────────────────────────
+
+    @Test
+    void createPin_returns401_whenNotLoggedIn() throws Exception {
+        // Override setUp stub — no active session
+        when(accountFacade.getCurrentUser()).thenReturn(null);
+
+        Pin input = buildPin(null, "Eiffel Tower");
+        mockMvc.perform(post("/api/pins")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(input)))
+                .andExpect(status().isUnauthorized());         // HTTP 401
+    }
+
+    @Test
+    void getAllPins_returns401_whenNotLoggedIn() throws Exception {
+        // Override setUp stub — no active session
+        when(accountFacade.getCurrentUser()).thenReturn(null);
+
+        mockMvc.perform(get("/api/pins"))
+                .andExpect(status().isUnauthorized());         // HTTP 401
     }
 }
