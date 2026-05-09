@@ -6,8 +6,9 @@
  * @param {Array<Object>} props.trips trips from GET /api/trips
  * @param {Array<Object>} props.pins pins from GET /api/pins
  * @param {function(number,string):void} [props.onTripPrivacyChange] callback for privacy update
+ * @param {function(Object):void} [props.onEditTrip] callback to open edit UI
  */
-export default function TripList({ trips, pins = [], onTripPrivacyChange, tripDistances = {} }) {
+export default function TripList({ trips, pins = [], onTripPrivacyChange, onEditTrip, tripDistances = {} }) {
   const formatDate = (d) => {
     if (!d) return '—';
     return typeof d === 'string' ? d : d;
@@ -39,7 +40,7 @@ export default function TripList({ trips, pins = [], onTripPrivacyChange, tripDi
       <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>Your trips</h3>
       {trips.length === 0 ? (
         <p style={{ margin: 0, fontSize: '13px', color: '#666' }}>
-          No trips yet. Use &quot;New trip&quot; to create one (FR5).
+          No trips yet. Use &quot;New trip&quot; to create one.
         </p>
       ) : (
         <ul
@@ -71,22 +72,23 @@ export default function TripList({ trips, pins = [], onTripPrivacyChange, tripDi
                 {t.privacyLevel ? ` · ${t.privacyLevel}` : ''}
               </div>
               <div style={{ marginTop: '6px' }}>
-                <label style={{ fontSize: '12px', color: '#555' }}>
-                  Privacy
-                  <select
-                    value={t.privacyLevel || 'PRIVATE'}
-                    onChange={(e) => {
-                      if (typeof onTripPrivacyChange === 'function' && t.id != null) {
-                        onTripPrivacyChange(Number(t.id), e.target.value);
-                      }
-                    }}
-                    style={{ marginLeft: '8px', padding: '4px', fontSize: '12px' }}
-                  >
-                    <option value="PRIVATE">Private</option>
-                    <option value="FRIENDS_ONLY">Friends only</option>
-                    <option value="PUBLIC">Public</option>
-                  </select>
-                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof onEditTrip === 'function') onEditTrip(t);
+                  }}
+                  style={{
+                    marginLeft: '8px',
+                    padding: '4px 8px',
+                    fontSize: '12px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    background: '#fff',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Edit
+                </button>
               </div>
               {(() => {
                 const assigned = [...(pinsByTripId[Number(t.id)] || [])].sort(sortByVisitDate);
@@ -106,7 +108,9 @@ export default function TripList({ trips, pins = [], onTripPrivacyChange, tripDi
                     <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '12px', color: '#555' }}>
                       {assigned.map((p) => (
                         <li key={p.id != null ? String(p.id) : `${p.locationName}-${p.visitDate || 'no-date'}`}>
-                          {formatDate(p.visitDate)} — {p.locationName || 'Unnamed Pin'}
+                          {p.visitDate
+                            ? `${formatDate(p.visitDate)} — ${p.locationName || 'Unnamed Pin'}`
+                            : (p.locationName || 'Unnamed Pin')}
                         </li>
                       ))}
                     </ul>

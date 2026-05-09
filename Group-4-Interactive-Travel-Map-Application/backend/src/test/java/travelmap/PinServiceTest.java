@@ -1,10 +1,12 @@
 package travelmap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -22,8 +24,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import travelmap.model.Pin;
 import travelmap.model.Privacy;
+import travelmap.model.Trip;
 import travelmap.repository.PinRepository;
 import travelmap.repository.PinService;
+import travelmap.repository.TripRepository;
 
 /**
  * PinServiceTest — Unit tests for PinService (Model/Service layer).
@@ -59,6 +63,9 @@ class PinServiceTest {
     @Mock
     private PinRepository pinRepository;
 
+    @Mock
+    private TripRepository tripRepository;
+
     private PinService pinService;
 
     /**
@@ -68,7 +75,7 @@ class PinServiceTest {
      */
     @BeforeEach
     void setUp() {
-        pinService = new PinService(pinRepository);
+        pinService = new PinService(pinRepository, tripRepository);
     }
 
     // ── Helper — builds a valid Pin for reuse across tests ───────────────────
@@ -291,6 +298,67 @@ class PinServiceTest {
 
         // Assert — original notes preserved
         assertEquals("Original notes", existing.getNotes());
+        verify(tripRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    void updatePin_clearsTrip_whenTripIdIsNoTripSentinel() {
+        Pin existing = buildValidPin();
+        existing.setId(1L);
+        existing.setTripId(5L);
+
+        Pin updates = new Pin();
+        updates.setTripId(Pin.NO_TRIP_ASSIGNMENT);
+
+        when(pinRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(pinRepository.save(any(Pin.class))).thenReturn(existing);
+
+        pinService.updatePin(1L, updates);
+
+        assertNull(existing.getTripId());
+        verify(tripRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    void updatePin_assignsTrip_whenTripExistsAndOwnerMatches() {
+        Pin existing = buildValidPin();
+        existing.setId(1L);
+        existing.setOwnerId("alice");
+
+        Trip trip = new Trip();
+        trip.setId(10L);
+        trip.setOwnerId("alice");
+
+        Pin updates = new Pin();
+        updates.setTripId(10L);
+
+        when(pinRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(tripRepository.findById(10L)).thenReturn(Optional.of(trip));
+        when(pinRepository.save(any(Pin.class))).thenReturn(existing);
+
+        pinService.updatePin(1L, updates);
+
+        assertEquals(10L, existing.getTripId());
+    }
+
+    @Test
+    void updatePin_throwsWhenTripOwnerDoesNotMatchPin() {
+        Pin existing = buildValidPin();
+        existing.setId(1L);
+        existing.setOwnerId("alice");
+
+        Trip trip = new Trip();
+        trip.setId(10L);
+        trip.setOwnerId("bob");
+
+        Pin updates = new Pin();
+        updates.setTripId(10L);
+
+        when(pinRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(tripRepository.findById(10L)).thenReturn(Optional.of(trip));
+
+        assertThrows(IllegalArgumentException.class, () -> pinService.updatePin(1L, updates));
+        verify(pinRepository, never()).save(any());
     }
 
     @Test

@@ -22,7 +22,7 @@ import DistancePanel from './components/DistancePanel';
 
 import { createPin, getPins, deletePin, updatePin, setPinPrivacy } from './services/pinService';
 import { uploadMedia, deleteMedia } from './services/mediaService';
-import { createTrip, getTrips, setTripPrivacy } from './services/tripService';
+import { createTrip, getTrips, setTripPrivacy, updateTrip } from './services/tripService';
 import { searchPins } from './services/searchService';
 import { getPinToPin, getTripDistance } from './services/mapDistanceService';
 
@@ -40,6 +40,7 @@ function App() {
   const [editPin, setEditPin] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showTripForm, setShowTripForm] = useState(false);
+  const [editingTrip, setEditingTrip] = useState(null);
   const [tripSaveError, setTripSaveError] = useState(null);
   const [tripPrivacyError, setTripPrivacyError] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -185,16 +186,29 @@ if (!isLoggedIn) {
   const handleSaveTrip = async (payload) => {
     setTripSaveError(null);
     try {
-      const saved = await createTrip(payload);
-      console.log('Trip returned from backend:', saved);
-      setTrips((prev) => [...prev, saved]);
+      if (editingTrip?.id != null) {
+        const updated = await updateTrip(editingTrip.id, payload);
+        console.log('Trip updated from backend:', updated);
+        setTrips((prev) => prev.map((trip) => (trip.id === updated.id ? updated : trip)));
+      } else {
+        const saved = await createTrip(payload);
+        console.log('Trip returned from backend:', saved);
+        setTrips((prev) => [...prev, saved]);
+      }
       setShowTripForm(false);
+      setEditingTrip(null);
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Could not save trip. Is backend running on :8080?';
+        err instanceof Error ? err.message : 'Could not save trip changes. Is backend running on :8080?';
       setTripSaveError(message);
       console.error('Could not save trip:', err);
     }
+  };
+
+  const handleEditTrip = (trip) => {
+    setTripSaveError(null);
+    setEditingTrip(trip);
+    setShowTripForm(true);
   };
 
   const handleTripPrivacyChange = async (tripId, privacyLevel) => {
@@ -221,10 +235,17 @@ if (!isLoggedIn) {
   // FR2 — step 2: User saved changes in EditPinForm.
   // Only sends the fields the user can edit — backend preserves all other fields.
   // Updates the pin in local state so the map reflects changes immediately.
-  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes, mediaFile }) => {
+  const handleUpdatePin = async ({ locationName, country, region, visitDate, notes, tripId, mediaFile }) => {
     if (!editPin) return;
     try {
-      let updated = await updatePin(editPin.id, { locationName, country, region, visitDate, notes });
+      let updated = await updatePin(editPin.id, {
+        locationName,
+        country,
+        region,
+        visitDate,
+        notes,
+        tripId,
+      });
       if (mediaFile) {
         try {
           updated = await uploadMedia(updated.id, mediaFile);
@@ -508,6 +529,7 @@ if (!isLoggedIn) {
               {editPin && (
                 <EditPinForm
                   pin={editPin}
+                  trips={trips}
                   onSave={handleUpdatePin}
                   onCancel={handleCancelEdit}
                   onPrivacyChange={handlePrivacyChange}
@@ -579,12 +601,13 @@ if (!isLoggedIn) {
           error={searchError}
           resultCount={searchResultCount}
         />
-
-        <TripList 
-          trips={trips} 
-          pins={pins} 
-          onTripPrivacyChange={handleTripPrivacyChange} 
-          tripDistances={tripDistances} />
+        <TripList
+          trips={trips}
+          pins={pins}
+          onTripPrivacyChange={handleTripPrivacyChange}
+          onEditTrip={handleEditTrip}
+          tripDistances={tripDistances}
+        />
         {tripPrivacyError ? (
           <p
             role="alert"
@@ -604,7 +627,11 @@ if (!isLoggedIn) {
         {!showTripForm ? (
           <button
             type="button"
-            onClick={() => setShowTripForm(true)}
+            onClick={() => {
+              setTripSaveError(null);
+              setEditingTrip(null);
+              setShowTripForm(true);
+            }}
             style={{
               width: '100%',
               padding: '10px',
@@ -636,10 +663,15 @@ if (!isLoggedIn) {
               </p>
             ) : null}
             <TripForm
+              key={editingTrip?.id ?? 'new-trip'}
               onSave={handleSaveTrip}
+              initialValues={editingTrip}
+              title={editingTrip ? 'Edit Trip' : 'New Trip'}
+              saveLabel={editingTrip ? 'Save changes' : 'Save trip'}
               onCancel={() => {
                 setTripSaveError(null);
                 setShowTripForm(false);
+                setEditingTrip(null);
               }}
             />
           </>

@@ -158,6 +158,39 @@ class TripServiceTest {
     }
 
     @Test
+    void updateTrip_found_updatesFields() {
+        Trip existing = new Trip();
+        existing.setId(7L);
+        existing.setName("Old");
+        existing.setDescription("Old description");
+        when(tripRepository.findById(7L)).thenReturn(Optional.of(existing));
+        when(tripRepository.save(existing)).thenReturn(existing);
+
+        Trip updates = new Trip();
+        updates.setName("New");
+        updates.setDescription("New description");
+
+        Optional<Trip> result = tripService.updateTrip(7L, updates);
+
+        assertTrue(result.isPresent());
+        assertEquals("New", result.get().getName());
+        assertEquals("New description", result.get().getDescription());
+    }
+
+    @Test
+    void updateTrip_blankName_throws() {
+        Trip existing = new Trip();
+        existing.setId(7L);
+        when(tripRepository.findById(7L)).thenReturn(Optional.of(existing));
+
+        Trip updates = new Trip();
+        updates.setName("   ");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.updateTrip(7L, updates));
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
     void deleteTrip_delegatesToRepository() {
         tripService.deleteTrip(42L);
         verify(tripRepository).deleteById(42L);

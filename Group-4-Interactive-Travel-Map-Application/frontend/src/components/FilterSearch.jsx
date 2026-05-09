@@ -49,15 +49,15 @@ export default function FilterSearch({
         marginBottom: '12px',
       }}
     >
-      <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>Filter/Search Pins</h3>
+      <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>Search</h3>
 
       <form onSubmit={handleSubmit}>
         <input
           type="text"
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          placeholder="Search by location keyword"
-          aria-label="Search pins by location keyword"
+          placeholder="Enter location name"
+          aria-label="Search pins by location name"
           style={{
             width: '100%',
             padding: '8px',

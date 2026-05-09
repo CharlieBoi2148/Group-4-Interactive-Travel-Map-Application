@@ -114,6 +114,13 @@ public class Pin {
      */
     private String mediaUrl;
 
+    /**
+     * Partial-update convention for {@code PUT /api/pins/{id}}: JSON {@code "tripId": -1}
+     * clears assignment (unassigned pin). Matches {@code NO_TRIP_ASSIGNMENT} in
+     * {@code pinService.js}. Not persisted — the saved entity uses {@code null}.
+     */
+    public static final long NO_TRIP_ASSIGNMENT = -1L;
+
     // ── Getters and Setters ───────────────────────────────────────────────────
     // Required by JPA and Spring's JSON serialization (Jackson).
     // Jackson uses these to convert Pin objects to/from JSON for the REST API.

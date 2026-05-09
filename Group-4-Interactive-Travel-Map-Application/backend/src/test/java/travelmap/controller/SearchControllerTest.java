@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,8 +15,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import travelmap.account.AccountFacade;
 import travelmap.model.Pin;
+import travelmap.model.Trip;
+import travelmap.model.User;
 import travelmap.repository.PinService;
+import travelmap.repository.TripService;
 
 @WebMvcTest(SearchController.class)
 class SearchControllerTest {
@@ -26,9 +31,31 @@ class SearchControllerTest {
     @MockBean
     private PinService pinService;
 
+    @MockBean
+    private TripService tripService;
+
+    @MockBean
+    private AccountFacade accountFacade;
+
+    private User signedInUser() {
+        User u = new User();
+        u.setUsername("user-1");
+        return u;
+    }
+
+    private Trip ownerTrip(long id) {
+        Trip t = new Trip();
+        t.setId(id);
+        t.setOwnerId("user-1");
+        t.setName("Owner trip");
+        return t;
+    }
+
     @Test
     void searchPins_noKeyword_returns200AndArray() throws Exception {
-        when(pinService.searchPins(null)).thenReturn(List.of());
+        when(accountFacade.getCurrentUser()).thenReturn(signedInUser());
+        when(tripService.getTripsForOwner("user-1")).thenReturn(List.of(ownerTrip(1L)));
+        when(pinService.searchPinsByTripIds(null, Set.of(1L), "user-1")).thenReturn(List.of());
 
         mockMvc.perform(get("/api/search"))
                 .andExpect(status().isOk())
@@ -44,7 +71,9 @@ class SearchControllerTest {
         p.setLatitude(48.8584);
         p.setLongitude(2.2945);
 
-        when(pinService.searchPins("eiffel")).thenReturn(List.of(p));
+        when(accountFacade.getCurrentUser()).thenReturn(signedInUser());
+        when(tripService.getTripsForOwner("user-1")).thenReturn(List.of(ownerTrip(1L)));
+        when(pinService.searchPinsByTripIds("eiffel", Set.of(1L), "user-1")).thenReturn(List.of(p));
 
         mockMvc.perform(get("/api/search").param("keyword", "eiffel"))
                 .andExpect(status().isOk())
@@ -54,11 +83,21 @@ class SearchControllerTest {
 
     @Test
     void searchPins_blankKeywordParam_returns200AndArray() throws Exception {
-        when(pinService.searchPins("   ")).thenReturn(List.of());
+        when(accountFacade.getCurrentUser()).thenReturn(signedInUser());
+        when(tripService.getTripsForOwner("user-1")).thenReturn(List.of(ownerTrip(1L)));
+        when(pinService.searchPinsByTripIds("   ", Set.of(1L), "user-1")).thenReturn(List.of());
 
         mockMvc.perform(get("/api/search").param("keyword", "   "))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    void searchPins_unauthenticated_returns401() throws Exception {
+        when(accountFacade.getCurrentUser()).thenReturn(null);
+
+        mockMvc.perform(get("/api/search"))
+                .andExpect(status().isUnauthorized());
     }
 }
 
