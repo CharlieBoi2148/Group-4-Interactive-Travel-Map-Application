@@ -11,8 +11,8 @@ import travelmap.model.Pin;
  * Architecture role:
  *   - This interface defines the public contract for MediaController.
  *   - MediaController implements this interface (LSP — substitutability).
- *   - AppController and tests depend on this interface, not on the concrete
- *     MediaController class (DIP — depend on abstractions).
+ *   - Tests depend on this interface, not on the concrete MediaController
+ *     class (DIP — depend on abstractions).
  *   - Only methods the consumer needs are exposed (ISP — interface segregation).
  *
  * SRS coverage:

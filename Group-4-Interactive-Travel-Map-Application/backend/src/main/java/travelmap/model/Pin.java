@@ -107,10 +107,6 @@ public class Pin {
      * FR7 — URL of the media file associated with this pin.
      * The actual file is stored in Cloudinary or local storage.
      * Only the URL string is saved here, not the file itself.
-     *
-     * TODO: This is a single URL for now (one media file per pin).
-     * FR7 allows multiple files — upgrade to @OneToMany with a Media
-     * entity once MediaController is implemented in Week 3.
      */
     private String mediaUrl;
 
