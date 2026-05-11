@@ -101,7 +101,7 @@ public class Pin {
      * Ensure Privacy.java is on the classpath — it was part of the skeleton.
      */
     @Enumerated(EnumType.STRING)
-    private Privacy privacyLevel = Privacy.PRIVATE;
+    private Privacy privacyLevel;
 
     /**
      * FR7 — URL of the media file associated with this pin.
