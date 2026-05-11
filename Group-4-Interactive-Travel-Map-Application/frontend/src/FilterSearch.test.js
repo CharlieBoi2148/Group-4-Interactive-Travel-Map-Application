@@ -10,7 +10,28 @@ test('FR9 — submits trimmed keyword to onSearch', () => {
   });
   fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
-  expect(onSearch).toHaveBeenCalledWith({ keyword: 'eiffel' });
+  expect(onSearch).toHaveBeenCalledWith({ keyword: 'eiffel', tripId: null });
+});
+
+test('FR9 — submits trip filter with keyword', () => {
+  const onSearch = jest.fn();
+  render(
+    <FilterSearch
+      onSearch={onSearch}
+      trips={[
+        { id: 1, name: 'Europe' },
+        { id: 2, name: 'Asia' },
+      ]}
+    />
+  );
+
+  fireEvent.change(screen.getByTestId('filter-search-trip'), { target: { value: '2' } });
+  fireEvent.change(screen.getByPlaceholderText('Enter location name'), {
+    target: { value: 'temple' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+  expect(onSearch).toHaveBeenCalledWith({ keyword: 'temple', tripId: 2 });
 });
 
 test('FR9 — clear button resets input and calls onClear', () => {
@@ -25,4 +46,5 @@ test('FR9 — clear button resets input and calls onClear', () => {
 
   expect(onClear).toHaveBeenCalledTimes(1);
   expect(screen.getByPlaceholderText('Enter location name')).toHaveValue('');
+  expect(screen.getByTestId('filter-search-trip')).toHaveValue('');
 });

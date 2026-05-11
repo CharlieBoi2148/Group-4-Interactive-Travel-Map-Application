@@ -84,11 +84,11 @@ function App() {
       });
   }, [isLoggedIn]);
 
-  const handleSearchPins = async ({ keyword }) => {
+  const handleSearchPins = async ({ keyword, tripId }) => {
     setSearchError(null);
     setIsSearching(true);
     try {
-      const results = await searchPins({ keyword });
+      const results = await searchPins({ keyword, tripId });
       setPins(results);
       setSearchResultCount(results.length);
     } catch (err) {
@@ -598,6 +598,7 @@ if (!isLoggedIn) {
         }}
       >
         <FilterSearch
+          trips={trips}
           onSearch={handleSearchPins}
           onClear={handleClearSearch}
           isLoading={isSearching}

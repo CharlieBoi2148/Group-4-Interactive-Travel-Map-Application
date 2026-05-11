@@ -2,6 +2,7 @@ package travelmap.controller;
 
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import travelmap.account.AccountFacade;
 import travelmap.interfaces.ISearchController;
 import travelmap.model.Pin;
+import travelmap.model.Trip;
 import travelmap.model.User;
 import travelmap.repository.PinService;
 import travelmap.repository.TripService;
@@ -46,15 +48,27 @@ public class SearchController implements ISearchController {
     }
 
     /**
-     * FR9 — Search pins by keyword.
+     * FR9 — Search / filter pins by optional keyword and optional trip.
      *
      * @param keyword optional keyword for location-name matching
-     * @return HTTP 200 with matching pins
+     * @param tripId when set, only pins assigned to this trip are returned (must belong to the user)
+     * @return HTTP 200 with matching pins; HTTP 404 if {@code tripId} is not found or not owned
      */
     @GetMapping
-    public ResponseEntity<List<Pin>> searchPins(@RequestParam(required = false) String keyword) {
+    public ResponseEntity<List<Pin>> searchPins(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long tripId) {
         String ownerId = resolveOwnerId();
         if (ownerId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        if (tripId != null) {
+            Optional<Trip> trip = tripService.getTripById(tripId);
+            if (trip.isEmpty() || trip.get().getOwnerId() == null || !ownerId.equals(trip.get().getOwnerId())) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            }
+            return ResponseEntity.ok(pinService.searchPinsForSingleTrip(tripId, keyword, ownerId));
+        }
+
         Set<Long> ownerTripIds = new LinkedHashSet<>();
         tripService.getTripsForOwner(ownerId).forEach(trip -> {
             if (trip.getId() != null) ownerTripIds.add(trip.getId());

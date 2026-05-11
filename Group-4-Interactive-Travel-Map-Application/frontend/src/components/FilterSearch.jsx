@@ -6,8 +6,9 @@ import { useState } from 'react';
 
 /**
  * @param {Object} props
- * @param {function(Object):void} props.onSearch called with { keyword }
+ * @param {function(Object):void} props.onSearch called with { keyword, tripId }
  * @param {function():void} [props.onClear] clears active filter/search state
+ * @param {Array<{id?: number, name?: string}>} [props.trips] trips for FR9 trip filter
  * @param {boolean} [props.isLoading] true while search request is pending
  * @param {string|null} [props.error] optional error message to display
  * @param {number|null} [props.resultCount] optional count shown after search
@@ -15,26 +16,29 @@ import { useState } from 'react';
 export default function FilterSearch({
   onSearch,
   onClear,
+  trips = [],
   isLoading = false,
   error = null,
   resultCount = null,
 }) {
   const [keyword, setKeyword] = useState('');
+  const [tripId, setTripId] = useState('');
 
   const handleSubmit = (event) => {
     event.preventDefault();
     if (typeof onSearch === 'function') {
-      onSearch({ keyword: keyword.trim() });
+      const tid = tripId === '' ? null : Number(tripId);
+      onSearch({ keyword: keyword.trim(), tripId: tid });
     }
   };
 
   const handleClear = () => {
     setKeyword('');
+    setTripId('');
     if (typeof onClear === 'function') {
       onClear();
     } else if (typeof onSearch === 'function') {
-      // Fallback: empty keyword means "show all" for FR9 flow.
-      onSearch({ keyword: '' });
+      onSearch({ keyword: '', tripId: null });
     }
   };
 
@@ -52,6 +56,34 @@ export default function FilterSearch({
       <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>Search</h3>
 
       <form onSubmit={handleSubmit}>
+        <label htmlFor="filter-search-trip" style={{ display: 'block', fontSize: '12px', color: '#555', marginBottom: '4px' }}>
+          Trip
+        </label>
+        <select
+          id="filter-search-trip"
+          data-testid="filter-search-trip"
+          value={tripId}
+          onChange={(e) => setTripId(e.target.value)}
+          aria-label="Filter pins by trip"
+          style={{
+            width: '100%',
+            padding: '8px',
+            marginBottom: '8px',
+            borderRadius: '6px',
+            border: '1px solid #ccc',
+            boxSizing: 'border-box',
+          }}
+        >
+          <option value="">All Trips</option>
+          {trips
+            .filter((t) => t.id != null)
+            .map((t) => (
+              <option key={String(t.id)} value={String(t.id)}>
+                {t.name || `Trip #${t.id}`}
+              </option>
+            ))}
+        </select>
+
         <input
           type="text"
           value={keyword}

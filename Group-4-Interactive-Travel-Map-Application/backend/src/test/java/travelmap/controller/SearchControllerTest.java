@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -98,6 +99,39 @@ class SearchControllerTest {
 
         mockMvc.perform(get("/api/search"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void searchPins_tripIdOwned_returnsPinsForTrip() throws Exception {
+        Pin p = new Pin();
+        p.setId(2L);
+        p.setLocationName("Colosseum");
+        p.setVisitDate(LocalDate.of(2024, 7, 15));
+        p.setLatitude(41.89);
+        p.setLongitude(12.49);
+
+        when(accountFacade.getCurrentUser()).thenReturn(signedInUser());
+        when(tripService.getTripById(5L)).thenReturn(Optional.of(ownerTrip(5L)));
+        when(pinService.searchPinsForSingleTrip(5L, null, "user-1")).thenReturn(List.of(p));
+
+        mockMvc.perform(get("/api/search").param("tripId", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(2))
+                .andExpect(jsonPath("$[0].locationName").value("Colosseum"));
+    }
+
+    @Test
+    void searchPins_tripIdNotOwned_returns404() throws Exception {
+        Trip other = new Trip();
+        other.setId(9L);
+        other.setOwnerId("someone-else");
+        other.setName("Other trip");
+
+        when(accountFacade.getCurrentUser()).thenReturn(signedInUser());
+        when(tripService.getTripById(9L)).thenReturn(Optional.of(other));
+
+        mockMvc.perform(get("/api/search").param("tripId", "9"))
+                .andExpect(status().isNotFound());
     }
 }
 
