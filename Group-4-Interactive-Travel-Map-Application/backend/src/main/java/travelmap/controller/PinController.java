@@ -24,8 +24,8 @@ import java.util.List;
  *   - Sits directly above PinService in the backend stack.
  *   - React's pinService.js sends fetch() calls to the endpoints defined here.
  *   - PinController delegates immediately to PinService — no direct DB access.
- *   - Implements IPinController so AppController can wire it via the interface,
- *     satisfying DIP and ISP from the SOLID principles documented in the SRS.
+ *   - Implements IPinController, satisfying DIP and ISP from the SOLID
+ *     principles documented in the SRS.
  *   - @RestController combines @Controller and @ResponseBody — all return values
  *     are automatically serialized to JSON by Spring's Jackson library.
  *   - @RequestMapping("/api/pins") prefixes all endpoint paths in this class.

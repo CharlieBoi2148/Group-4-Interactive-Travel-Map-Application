@@ -1,6 +1,5 @@
 package travelmap.model;
 
-import java.util.List;
 
 public class User {
     private String userId;
@@ -9,8 +8,6 @@ public class User {
     private String profilePicture;
     private String homeLocation;
     private String measurementPreference;
-    private List<Trip> trips;
-    private Statistics statistics;
 
     public String getUserId() {
         return userId;
