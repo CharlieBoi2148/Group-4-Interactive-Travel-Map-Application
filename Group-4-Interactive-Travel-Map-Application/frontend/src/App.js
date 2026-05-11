@@ -370,28 +370,31 @@ if (!isLoggedIn) {
     setDistanceLoading(false);
   };
   
+  // Sidebar top padding clears the fixed top-right Logout so it does not cover Search.
+  const sidebarTopReservePx = 52;
+
   return (
-      
     <div style={{ position: 'relative', height: '100vh', display: 'flex' }}>
-
-          <button
-      onClick={handleLogout}
-      style={{
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
-        zIndex: 3000,
-        padding: '8px 12px',
-        background: '#e53e3e',
-        color: 'white',
-        border: 'none',
-        borderRadius: '5px',
-        cursor: 'pointer'
-      }}
-    >
-      Logout
-    </button>
-
+      <button
+        type="button"
+        onClick={handleLogout}
+        data-testid="logout-button"
+        style={{
+          position: 'absolute',
+          top: '10px',
+          right: '10px',
+          zIndex: 3000,
+          padding: '8px 12px',
+          background: '#e53e3e',
+          color: 'white',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          fontWeight: 600,
+        }}
+      >
+        Logout
+      </button>
 
       <div
         style={{
@@ -589,7 +592,7 @@ if (!isLoggedIn) {
           flexShrink: 0,
           borderLeft: '1px solid #ddd',
           background: '#fafafa',
-          padding: '12px',
+          padding: `${sidebarTopReservePx}px 12px 12px 12px`,
           overflowY: 'auto',
           boxSizing: 'border-box',
         }}
@@ -643,7 +646,7 @@ if (!isLoggedIn) {
               fontWeight: 600,
             }}
           >
-            New trip
+            New Trip
           </button>
         ) : (
           <>
