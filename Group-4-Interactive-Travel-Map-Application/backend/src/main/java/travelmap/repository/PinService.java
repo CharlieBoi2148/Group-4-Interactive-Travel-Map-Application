@@ -194,6 +194,23 @@ public class PinService {
     }
 
     /**
+     * FR9 — When the user selects a specific trip filter, return only pins on that trip
+     * (optional keyword still filters by location name). Caller must ensure the trip belongs
+     * to {@code ownerId}.
+     */
+    public List<Pin> searchPinsForSingleTrip(Long tripId, String keyword, String ownerId) {
+        if (ownerId == null || ownerId.trim().isEmpty() || tripId == null) {
+            return List.of();
+        }
+        String trimmed = keyword == null ? null : keyword.trim();
+        boolean hasKeyword = trimmed != null && !trimmed.isEmpty();
+        if (hasKeyword) {
+            return pinRepository.findByTripIdAndOwnerIdAndLocationNameContainingIgnoreCase(tripId, ownerId, trimmed);
+        }
+        return pinRepository.findByTripIdAndOwnerId(tripId, ownerId);
+    }
+
+    /**
      * FR2 — Update an existing pin's fields.
      *
      * Finds the existing pin by id, applies the updated fields from the

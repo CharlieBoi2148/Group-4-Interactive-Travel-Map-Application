@@ -139,4 +139,11 @@ public interface PinRepository extends JpaRepository<Pin, Long> {
      * @return list of pins assigned to the given trip, empty list if none exist
      */
     List<Pin> findByTripId(Long tripId);
+
+    /**
+     * FR9 — Pins on one trip, scoped to owner (NFR4).
+     */
+    List<Pin> findByTripIdAndOwnerId(Long tripId, String ownerId);
+
+    List<Pin> findByTripIdAndOwnerIdAndLocationNameContainingIgnoreCase(Long tripId, String ownerId, String keyword);
 }
