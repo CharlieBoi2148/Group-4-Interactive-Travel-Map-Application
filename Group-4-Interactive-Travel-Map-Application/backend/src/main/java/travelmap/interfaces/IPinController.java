@@ -14,16 +14,13 @@ import java.util.List;
  * concrete PinController class. This satisfies two SOLID principles:
  *
  *   ISP (Interface Segregation Principle) — callers only see pin-related
- *   methods. AppController wires this interface, not the concrete class.
+ *   methods, not the full concrete PinController class.
  *
- *   DIP (Dependency Inversion Principle) — high-level modules (AppController)
- *   depend on this abstraction, not on PinController directly. This means
- *   PinController can be swapped or mocked in tests without affecting anything
- *   that depends on IPinController.
+ *   DIP (Dependency Inversion Principle) — callers depend on this abstraction,
+ *   not on PinController directly. This means PinController can be swapped
+ *   or mocked in tests without affecting anything that depends on IPinController.
  *
  * Architecture role:
- *   - This interface sits between AppController and PinController.
- *   - AppController holds a reference of type IPinController.
  *   - PinController provides the concrete implementation.
  *   - PinService is called by PinController — not referenced here.
  *   - The React frontend never knows this interface exists — it only

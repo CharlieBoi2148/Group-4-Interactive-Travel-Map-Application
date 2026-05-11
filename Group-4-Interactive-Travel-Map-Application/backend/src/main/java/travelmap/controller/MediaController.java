@@ -31,8 +31,7 @@ import travelmap.model.Pin;
  *   - Translates MediaService's IllegalArgumentException into the right
  *     HTTP status: 400 Bad Request for validation errors, 404 Not Found
  *     when the message contains "not found" (mirrors MapController).
- *   - Implements IMediaController so AppController and tests can depend
- *     on the abstraction (DIP).
+ *   - Implements IMediaController so tests can depend on the abstraction (DIP).
  *
  * SRS coverage:
  *   FR7 — Upload Media (POST /api/media/{pinId})
