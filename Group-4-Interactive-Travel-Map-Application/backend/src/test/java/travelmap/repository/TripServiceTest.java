@@ -67,6 +67,17 @@ class TripServiceTest {
     }
 
     @Test
+    void createTrip_boundary_emptyDescriptionAccepted_persists() {
+        validTrip.setDescription("");
+        when(tripRepository.save(validTrip)).thenAnswer(inv -> inv.getArgument(0));
+
+        Trip saved = tripService.createTrip(validTrip);
+
+        assertEquals("", saved.getDescription());
+        verify(tripRepository).save(validTrip);
+    }
+
+    @Test
     void createTrip_preservesExplicitPrivacy() {
         validTrip.setPrivacyLevel(Privacy.PUBLIC);
         when(tripRepository.save(validTrip)).thenAnswer(inv -> inv.getArgument(0));
@@ -75,6 +86,19 @@ class TripServiceTest {
 
         assertEquals(Privacy.PUBLIC, saved.getPrivacyLevel());
         verify(tripRepository).save(validTrip);
+    }
+
+    @Test
+    void timeline_boundary_nullStartDatesSortLast() {
+        Trip nullStart = new Trip("NullStart", null, null, LocalDate.of(2026, 6, 10), null, null, "u1");
+        Trip earlier = new Trip("Earlier", null, LocalDate.of(2026, 6, 1), null, null, null, "u1");
+        List<Trip> unsorted = new ArrayList<>(List.of(nullStart, earlier));
+        when(tripRepository.findByOwnerId("u1")).thenReturn(unsorted);
+
+        List<Trip> timeline = tripService.getTimelineForOwner("u1");
+
+        assertEquals("Earlier", timeline.get(0).getName());
+        assertEquals("NullStart", timeline.get(1).getName());
     }
 
     @Test
@@ -130,6 +154,39 @@ class TripServiceTest {
         when(tripRepository.findById(3L)).thenReturn(Optional.empty());
 
         assertTrue(tripService.setTripPrivacy(3L, Privacy.PUBLIC).isEmpty());
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void updateTrip_found_updatesFields() {
+        Trip existing = new Trip();
+        existing.setId(7L);
+        existing.setName("Old");
+        existing.setDescription("Old description");
+        when(tripRepository.findById(7L)).thenReturn(Optional.of(existing));
+        when(tripRepository.save(existing)).thenReturn(existing);
+
+        Trip updates = new Trip();
+        updates.setName("New");
+        updates.setDescription("New description");
+
+        Optional<Trip> result = tripService.updateTrip(7L, updates);
+
+        assertTrue(result.isPresent());
+        assertEquals("New", result.get().getName());
+        assertEquals("New description", result.get().getDescription());
+    }
+
+    @Test
+    void updateTrip_blankName_throws() {
+        Trip existing = new Trip();
+        existing.setId(7L);
+        when(tripRepository.findById(7L)).thenReturn(Optional.of(existing));
+
+        Trip updates = new Trip();
+        updates.setName("   ");
+
+        assertThrows(IllegalArgumentException.class, () -> tripService.updateTrip(7L, updates));
         verify(tripRepository, never()).save(any());
     }
 

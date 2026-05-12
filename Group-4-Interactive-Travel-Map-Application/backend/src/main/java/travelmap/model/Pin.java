@@ -69,6 +69,26 @@ public class Pin {
     private Long tripId;
 
     /**
+     * NFR4, FR11 — ID of the user who owns this pin.
+     *
+     * Used to enforce owner-only access control. Only the owner can edit,
+     * delete, or change the privacy of their own pins. Also used by
+     * PinRepository.findByOwnerId() to scope GET /api/pins so that users
+     * only see their own pins (fixes NFR4 violation where getAllPins
+     * previously returned every user's pins).
+     *
+     * Stored as String to match Gage's Trip.ownerId and to remain flexible
+     * regardless of whether Wilson's User entity uses Long IDs, UUIDs, or
+     * usernames. If User.id is Long, conversion is trivial at the auth
+     * layer via String.valueOf(user.getId()).
+     *
+     * Currently nullable — populated by AuthController via Spring Security
+     * once Wilson's auth layer lands. Until then, this field stays null
+     * and getAllPins() continues to use findAll() unchanged.
+     */
+    private String ownerId;
+
+    /**
      * FR11 — privacy setting for this pin.
      * Stored as a string in the database ("PRIVATE", "FRIENDS_ONLY", "PUBLIC").
      * EnumType.STRING is used instead of EnumType.ORDINAL so that the database
@@ -81,18 +101,21 @@ public class Pin {
      * Ensure Privacy.java is on the classpath — it was part of the skeleton.
      */
     @Enumerated(EnumType.STRING)
-    private Privacy privacyLevel = Privacy.PRIVATE;
+    private Privacy privacyLevel;
 
     /**
      * FR7 — URL of the media file associated with this pin.
      * The actual file is stored in Cloudinary or local storage.
      * Only the URL string is saved here, not the file itself.
-     *
-     * TODO: This is a single URL for now (one media file per pin).
-     * FR7 allows multiple files — upgrade to @OneToMany with a Media
-     * entity once MediaController is implemented in Week 3.
      */
     private String mediaUrl;
+
+    /**
+     * Partial-update convention for {@code PUT /api/pins/{id}}: JSON {@code "tripId": -1}
+     * clears assignment (unassigned pin). Matches {@code NO_TRIP_ASSIGNMENT} in
+     * {@code pinService.js}. Not persisted — the saved entity uses {@code null}.
+     */
+    public static final long NO_TRIP_ASSIGNMENT = -1L;
 
     // ── Getters and Setters ───────────────────────────────────────────────────
     // Required by JPA and Spring's JSON serialization (Jackson).
@@ -124,6 +147,9 @@ public class Pin {
 
     public Long getTripId() { return tripId; }
     public void setTripId(Long tripId) { this.tripId = tripId; }
+
+    public String getOwnerId() { return ownerId; }
+    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
 
     public Privacy getPrivacyLevel() { return privacyLevel; }
     public void setPrivacyLevel(Privacy privacyLevel) { this.privacyLevel = privacyLevel; }

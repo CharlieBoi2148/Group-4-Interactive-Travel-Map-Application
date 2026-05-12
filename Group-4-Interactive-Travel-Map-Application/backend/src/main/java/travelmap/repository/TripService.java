@@ -54,6 +54,13 @@ public class TripService {
         return tripRepository.findAll();
     }
 
+    public List<Trip> getTripsForOwner(String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            return List.of();
+        }
+        return tripRepository.findByOwnerId(ownerId);
+    }
+
     /**
      * Retrieve a trip by id.
      *
@@ -62,6 +69,43 @@ public class TripService {
      */
     public Optional<Trip> getTripById(Long id) {
         return tripRepository.findById(id);
+    }
+
+    /**
+     * Update mutable trip fields for an existing trip.
+     *
+     * @param id trip id
+     * @param updates fields to update
+     * @return optional updated trip
+     */
+    public Optional<Trip> updateTrip(Long id, Trip updates) {
+        return tripRepository.findById(id).map(existing -> {
+            if (updates.getName() != null) {
+                if (updates.getName().isBlank()) {
+                    throw new IllegalArgumentException("Trip name is required");
+                }
+                existing.setName(updates.getName());
+            }
+            if (updates.getDescription() != null) {
+                existing.setDescription(updates.getDescription());
+            }
+            if (updates.getStartDate() != null) {
+                existing.setStartDate(updates.getStartDate());
+            }
+            if (updates.getEndDate() != null) {
+                existing.setEndDate(updates.getEndDate());
+            }
+            if (updates.getPrivacyLevel() != null) {
+                existing.setPrivacyLevel(updates.getPrivacyLevel());
+            }
+            return tripRepository.save(existing);
+        });
+    }
+
+    public Optional<Trip> updateTripForOwner(Long id, Trip updates, String ownerId) {
+        return tripRepository.findById(id)
+                .filter(trip -> ownerId != null && ownerId.equals(trip.getOwnerId()))
+                .flatMap(trip -> updateTrip(id, updates));
     }
 
     /**
@@ -90,6 +134,12 @@ public class TripService {
             trip.setPrivacyLevel(privacyLevel);
             return tripRepository.save(trip);
         });
+    }
+
+    public Optional<Trip> setTripPrivacyForOwner(Long id, Privacy privacyLevel, String ownerId) {
+        return tripRepository.findById(id)
+                .filter(trip -> ownerId != null && ownerId.equals(trip.getOwnerId()))
+                .flatMap(trip -> setTripPrivacy(id, privacyLevel));
     }
 
     /**

@@ -1,12 +1,14 @@
 package travelmap.repository;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import travelmap.model.Pin;
 import travelmap.model.Privacy;
+import travelmap.model.Trip;
 
 /**
  * PinService — Service layer (MVC Model).
@@ -48,18 +50,21 @@ import travelmap.model.Privacy;
 public class PinService {
 
     private final PinRepository pinRepository;
+    private final TripRepository tripRepository;
 
     /**
-     * Constructor injection — PinRepository is provided by Spring on startup.
+     * Constructor injection — dependencies are provided by Spring on startup.
      * Using constructor injection instead of @Autowired field injection so
-     * that PinServiceTest can pass a mock repository directly:
-     *   PinService service = new PinService(mockRepository);
+     * that PinServiceTest can pass mocks directly:
+     *   PinService service = new PinService(mockPinRepository, mockTripRepository);
      *
      * @param pinRepository Spring Data JPA repository for Pin persistence
+     * @param tripRepository used to load trips when assigning a pin (validates owner against pin)
      */
     @Autowired
-    public PinService(PinRepository pinRepository) {
+    public PinService(PinRepository pinRepository, TripRepository tripRepository) {
         this.pinRepository = pinRepository;
+        this.tripRepository = tripRepository;
     }
 
     /**
@@ -72,20 +77,22 @@ public class PinService {
      * privacyLevel defaults to PRIVATE if not provided by the client —
      * safe default per NFR4, users must explicitly make pins public.
      *
+     * NFR4 — stamps the authenticated user's ownerId onto the pin before
+     * saving so that getAllPins() can filter by owner. PinController
+     * extracts the username from AccountFacade.getCurrentUser() and passes
+     * it here. Without this stamp, findByOwnerId() would never return the
+     * pin to its creator.
+     *
      * JPA's save() performs an INSERT since the pin has no id yet.
      * The database assigns the id and JPA returns the saved Pin with it.
      * React uses this id to identify the pin for future edit/delete calls.
      *
-     * TODO (FR1 — media):
-     * Once MediaController is implemented in Week 3, createPin() will need
-     * to handle optional media association. The mediaUrl field on Pin will
-     * be populated by MediaService after the file is uploaded to Cloudinary.
-     *
-     * @param pin Pin object from the HTTP request body
+     * @param pin     Pin object from the HTTP request body
+     * @param ownerId username of the authenticated user creating the pin
      * @return the saved Pin with its database-generated id
-     * @throws IllegalArgumentException if required fields are missing
+     * @throws IllegalArgumentException if required fields are missing or ownerId is blank
      */
-    public Pin createPin(Pin pin) {
+    public Pin createPin(Pin pin, String ownerId) {
         // Validate required fields per FR1 step 2
         if (pin.getLocationName() == null || pin.getLocationName().trim().isEmpty()) {
             throw new IllegalArgumentException("Location name is required");
@@ -99,30 +106,108 @@ public class PinService {
             pin.setPrivacyLevel(Privacy.PRIVATE);
         }
 
+        // FR5 — negative tripId is a sentinel; never persist it on create
+        if (pin.getTripId() != null && pin.getTripId() < 0) {
+            pin.setTripId(null);
+        }
+
+        // NFR4 — stamp owner before persisting so the pin is retrievable by its creator
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Owner ID is required");
+        }
+        pin.setOwnerId(ownerId);
+
         return pinRepository.save(pin);
     }
-
     /**
-     * FR4 — Retrieve all pins from the database.
+     * FR4 — Retrieve all pins belonging to the authenticated user.
      *
      * Called by PinController on GET /api/pins, which MapView.jsx calls
      * on mount to load all pins onto the map. Returns an empty list if
      * no pins exist — never null, so React can safely call .map() on it.
      *
-     * CRITICAL TODO (coordinate with Wilson — FR4, NFR4):
-     * Currently returns ALL pins in the database regardless of who owns them.
-     * Once Wilson's auth branch merges to dev:
-     *   1. Add ownerId (Long) field to Pin.java
-     *   2. Add findByOwnerId(Long ownerId) to PinRepository
-     *   3. Replace pinRepository.findAll() with:
-     *      pinRepository.findByOwnerId(currentUser.getId())
-     *   4. PinController must pass the authenticated user's id here.
-     * Without this change every user sees every other user's pins.
+     * Implemented May 2026 — filters by authenticated user's ownerId per NFR4.
+     * PinController extracts the username from AccountFacade.getCurrentUser()
+     * and passes it here. Only pins stamped with that ownerId are returned.
      *
-     * @return list of all pins — to be filtered by owner after auth merge
+     * @param ownerId username of the authenticated user
+     * @return list of pins owned by the given user
+     * @throws IllegalArgumentException if ownerId is null or blank
      */
-    public List<Pin> getAllPins() {
-        return pinRepository.findAll();
+    public List<Pin> getAllPins(String ownerId) {
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Owner ID is required");
+        }
+        return pinRepository.findByOwnerId(ownerId);
+    }
+
+    /**
+     * FR9 — Search pins by keyword.
+     *
+     * <p>Returns all pins when keyword is null/blank so the search view can
+     * gracefully load default results without forcing a non-empty query.
+     *
+     * @param keyword keyword to match against pin location names
+     * @return matching pins, or all pins when keyword is blank
+     */
+    public List<Pin> searchPins(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return pinRepository.findAll();
+        }
+        return pinRepository.findByLocationNameContainingIgnoreCase(keyword.trim());
+    }
+
+    public List<Pin> searchPinsByTripIds(String keyword, Set<Long> tripIds) {
+        if (tripIds == null || tripIds.isEmpty()) {
+            return List.of();
+        }
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return pinRepository.findByTripIdIn(tripIds);
+        }
+        return pinRepository.findByTripIdInAndLocationNameContainingIgnoreCase(tripIds, keyword.trim());
+    }
+
+    public List<Pin> searchPinsByTripIds(String keyword, Set<Long> tripIds, String ownerId) {
+        if (ownerId == null || ownerId.trim().isEmpty()) {
+            return List.of();
+        }
+        String trimmed = keyword == null ? null : keyword.trim();
+        boolean hasKeyword = trimmed != null && !trimmed.isEmpty();
+
+        List<Pin> tripPins = (tripIds == null || tripIds.isEmpty())
+                ? List.of()
+                : (hasKeyword
+                        ? pinRepository.findByTripIdInAndLocationNameContainingIgnoreCase(tripIds, trimmed)
+                        : pinRepository.findByTripIdIn(tripIds));
+
+        List<Pin> unassignedPins = hasKeyword
+                ? pinRepository.findByOwnerIdAndTripIdIsNullAndLocationNameContainingIgnoreCase(ownerId, trimmed)
+                : pinRepository.findByOwnerIdAndTripIdIsNull(ownerId);
+
+        if (tripPins.isEmpty()) return unassignedPins;
+        if (unassignedPins.isEmpty()) return tripPins;
+
+        java.util.LinkedHashMap<Long, Pin> dedup = new java.util.LinkedHashMap<>();
+        tripPins.forEach(pin -> dedup.put(pin.getId(), pin));
+        unassignedPins.forEach(pin -> dedup.put(pin.getId(), pin));
+        return List.copyOf(dedup.values());
+    }
+
+    /**
+     * FR9 — When the user selects a specific trip filter, return only pins on that trip
+     * (optional keyword still filters by location name). Caller must ensure the trip belongs
+     * to {@code ownerId}.
+     */
+    public List<Pin> searchPinsForSingleTrip(Long tripId, String keyword, String ownerId) {
+        if (ownerId == null || ownerId.trim().isEmpty() || tripId == null) {
+            return List.of();
+        }
+        String trimmed = keyword == null ? null : keyword.trim();
+        boolean hasKeyword = trimmed != null && !trimmed.isEmpty();
+        if (hasKeyword) {
+            return pinRepository.findByTripIdAndOwnerIdAndLocationNameContainingIgnoreCase(tripId, ownerId, trimmed);
+        }
+        return pinRepository.findByTripIdAndOwnerId(tripId, ownerId);
     }
 
     /**
@@ -160,11 +245,37 @@ public class PinService {
         if (pin.getRegion() != null) existing.setRegion(pin.getRegion());
         if (pin.getVisitDate() != null) existing.setVisitDate(pin.getVisitDate());
         if (pin.getNotes() != null) existing.setNotes(pin.getNotes());
-        if (pin.getTripId() != null) existing.setTripId(pin.getTripId());
+        applyTripAssignmentUpdate(existing, pin);
         if (pin.getPrivacyLevel() != null) existing.setPrivacyLevel(pin.getPrivacyLevel());
         if (pin.getMediaUrl() != null) existing.setMediaUrl(pin.getMediaUrl());
 
         return pinRepository.save(existing);
+    }
+
+    /**
+     * FR5 — Apply {@code tripId} from a partial update {@link Pin}.
+     * Omitted or null {@code tripId} leaves the assignment unchanged.
+     * {@link Pin#NO_TRIP_ASSIGNMENT} clears the assignment.
+     */
+    private void applyTripAssignmentUpdate(Pin existing, Pin patch) {
+        Long tid = patch.getTripId();
+        if (tid == null) {
+            return;
+        }
+        if (tid == Pin.NO_TRIP_ASSIGNMENT) {
+            existing.setTripId(null);
+            return;
+        }
+        Trip trip = tripRepository.findById(tid)
+                .orElseThrow(() -> new IllegalArgumentException("Trip not found: " + tid));
+        String pinOwner = existing.getOwnerId();
+        if (pinOwner != null && !pinOwner.isBlank()) {
+            String tripOwner = trip.getOwnerId();
+            if (tripOwner == null || !pinOwner.equals(tripOwner)) {
+                throw new IllegalArgumentException("Trip does not belong to the pin owner");
+            }
+        }
+        existing.setTripId(tid);
     }
 
     /**

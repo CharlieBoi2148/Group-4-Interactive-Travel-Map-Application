@@ -6,6 +6,8 @@
 // to the Java backend (GET /api/pins) rather than local state.
 
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import MediaPreview from './MediaPreview';
+import { mediaUrl } from '../services/mediaService';
 
 // Pure View event listener — listens for user interaction on the map
 // and delegates the event upward to the Controller. Makes no decisions.
@@ -18,7 +20,7 @@ function PinPlacer({ onMapClick }) {
   return null;
 }
 
-export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onEditPin }) {
+export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onEditPin, onMeasurePin, measuringFrom }) {
   const tripNameById = new Map(
     trips
       .filter((trip) => trip.id != null)
@@ -63,10 +65,15 @@ export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onE
             </span>
           </>
         ) : null}
+        {pin.mediaUrl && (
+          <div style={{ marginTop: '8px' }}>
+            <MediaPreview src={mediaUrl(pin)} maxWidth={180} alt={pin.locationName} />
+          </div>
+        )}
 
         <br />
         <br />
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
           <button
             onClick={() => onEditPin?.(pin)}
             style={{
@@ -94,6 +101,20 @@ export default function MapView({ pins, trips = [], onMapClick, onDeletePin, onE
             }}
           >
             Delete
+          </button>
+          <button
+            onClick={() => onMeasurePin?.(pin)}
+            style={{
+              flex: 1,
+              padding: '6px',
+              background: measuringFrom && measuringFrom.id === pin.id ? '#805ad5' : '#718096',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            {measuringFrom && measuringFrom.id === pin.id ? 'Cancel' : 'Measure'}
           </button>
         </div>
       </Popup>

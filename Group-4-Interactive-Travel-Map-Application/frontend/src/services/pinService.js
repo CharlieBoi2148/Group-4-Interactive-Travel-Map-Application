@@ -15,6 +15,9 @@
 
 const PIN_API_URL = 'http://localhost:8080/api/pins';
 
+/** Clears trip on PUT partial update; matches {@code Pin.NO_TRIP_ASSIGNMENT} in the Java model. */
+export const NO_TRIP_ASSIGNMENT = -1;
+
 /**
  * Ensure a pin object has both lat/lng and latitude/longitude.
  * @param {Object} p raw pin
